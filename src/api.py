@@ -78,6 +78,58 @@ def apply_sequence(req: SequenceRequest):
     # Return the updated graph so the frontend can react immediately
     return get_graph()
 
+class SolveRequest(BaseModel):
+    sequence: str
+
+@app.post("/api/solve")
+def solve_cube(req: SolveRequest):
+    """Find the shortest path from the current state to the identity state."""
+    db = get_db()
+    identity = CubeState()
+    target_hash = identity.get_hash()
+    
+    # Calculate current state by applying the known sequence
+    current_state = identity.apply_sequence(req.sequence)
+    current_hash = current_state.get_hash()
+    
+    if current_hash == target_hash:
+        return {"moves": [], "error": "Cube is already solved."}
+    
+    raw_path = db.find_shortest_path(current_hash, target_hash)
+    if not raw_path:
+        return {"moves": [], "error": "No path found in the known graph. Explore more nodes first!"}
+        
+    moves = []
+    current_vertex = current_hash
+
+    
+    for step in raw_path:
+        # The first step usually has edge=None
+        if not step.get("edge"):
+            continue
+            
+        edge = step["edge"]
+        move = edge["move"]
+        
+        # If the edge went FROM the current vertex, we are walking forward, so apply the move.
+        # If the edge went TO the current vertex, we are walking backward along the edge, so apply the inverse move.
+        from_key = edge["_from"].split("/")[1]
+        
+        if from_key == current_vertex:
+            moves.append(move)
+        else:
+            # Invert the move: R -> R', R' -> R, R2 -> R2
+            if move.endswith("'"):
+                moves.append(move[0])
+            elif move.endswith("2"):
+                moves.append(move)
+            else:
+                moves.append(move + "'")
+                
+        current_vertex = step["vertex"]
+        
+    return {"moves": moves}
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)

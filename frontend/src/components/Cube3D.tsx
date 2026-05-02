@@ -8,6 +8,8 @@ const COLORS = {
   bottom: '#FFD500', front: '#009B48', back: '#0046AD', core: '#111111'
 };
 
+const EPSILON = 0.1;
+
 // Determine axis and angle for each move
 function getMoveDetails(move: string) {
   const face = move[0];
@@ -19,12 +21,12 @@ function getMoveDetails(move: string) {
   let angle = Math.PI / 2;
 
   switch (face) {
-    case 'R': axis.set(1, 0, 0); filter = (p) => Math.round(p.x) === 1; angle = -angle; break;
-    case 'L': axis.set(1, 0, 0); filter = (p) => Math.round(p.x) === -1; break;
-    case 'U': axis.set(0, 1, 0); filter = (p) => Math.round(p.y) === 1; angle = -angle; break;
-    case 'D': axis.set(0, 1, 0); filter = (p) => Math.round(p.y) === -1; break;
-    case 'F': axis.set(0, 0, 1); filter = (p) => Math.round(p.z) === 1; angle = -angle; break;
-    case 'B': axis.set(0, 0, 1); filter = (p) => Math.round(p.z) === -1; break;
+    case 'R': axis.set(1, 0, 0); filter = (p) => p.x > 1 - EPSILON; angle = -angle; break;
+    case 'L': axis.set(1, 0, 0); filter = (p) => p.x < -1 + EPSILON; break;
+    case 'U': axis.set(0, 1, 0); filter = (p) => p.y > 1 - EPSILON; angle = -angle; break;
+    case 'D': axis.set(0, 1, 0); filter = (p) => p.y < -1 + EPSILON; break;
+    case 'F': axis.set(0, 0, 1); filter = (p) => p.z > 1 - EPSILON; angle = -angle; break;
+    case 'B': axis.set(0, 0, 1); filter = (p) => p.z < -1 + EPSILON; break;
     default: return null;
   }
 
@@ -65,19 +67,22 @@ function CubieRenderer({ initialPos, position, rotation }: { initialPos: THREE.V
 }
 
 export function Cube3D() {
-  const [cubies, setCubies] = useState(() => {
-    const arr = [];
-    let id = 0;
-    for (let x = -1; x <= 1; x++) {
-      for (let y = -1; y <= 1; y++) {
-        for (let z = -1; z <= 1; z++) {
-          arr.push({ id: id++, initialPos: new THREE.Vector3(x, y, z), pos: new THREE.Vector3(x, y, z), rot: new THREE.Quaternion() });
+  const cubiesRef = useRef(
+    (() => {
+      const arr = [];
+      let id = 0;
+      for (let x = -1; x <= 1; x++) {
+        for (let y = -1; y <= 1; y++) {
+          for (let z = -1; z <= 1; z++) {
+            arr.push({ id: id++, initialPos: new THREE.Vector3(x, y, z), pos: new THREE.Vector3(x, y, z), rot: new THREE.Quaternion() });
+          }
         }
       }
-    }
-    return arr;
-  });
+      return arr;
+    })()
+  );
 
+  const [, setTick] = useState(0);
   const { moveQueue, isAnimating, setAnimating, popMove } = useCubeStore();
   
   const animState = useRef({
@@ -91,6 +96,8 @@ export function Cube3D() {
   });
 
   useFrame((state, delta) => {
+    const currentCubies = cubiesRef.current;
+
     if (!animState.current.active && moveQueue.length > 0 && !isAnimating) {
       const nextMove = popMove();
       if (!nextMove) return;
@@ -103,7 +110,7 @@ export function Cube3D() {
       const sQuats: THREE.Quaternion[] = [];
       const sPos: THREE.Vector3[] = [];
       
-      cubies.forEach((c, idx) => {
+      currentCubies.forEach((c, idx) => {
         if (details.filter(c.pos)) {
           indices.push(idx);
           sQuats.push(c.rot.clone());
@@ -125,24 +132,16 @@ export function Cube3D() {
 
       const q = new THREE.Quaternion().setFromAxisAngle(details!.axis, currentAngle);
 
-      setCubies(prev => {
-        const next = [...prev];
-        cubieIndices.forEach((idx, i) => {
-          const newPos = startPositions[i].clone().applyQuaternion(q);
-          const newRot = q.clone().multiply(startQuats[i]);
-          next[idx] = { ...next[idx], pos: newPos, rot: newRot };
-        });
-        return next;
+      cubieIndices.forEach((idx, i) => {
+        currentCubies[idx].pos = startPositions[i].clone().applyQuaternion(q);
+        currentCubies[idx].rot = q.clone().multiply(startQuats[i]);
       });
 
       if (isFinished) {
-        setCubies(prev => {
-          const next = [...prev];
-          cubieIndices.forEach((idx) => {
-            const p = next[idx].pos;
-            p.set(Math.round(p.x), Math.round(p.y), Math.round(p.z));
-          });
-          return next;
+        cubieIndices.forEach((idx) => {
+          const p = currentCubies[idx].pos;
+          p.set(Math.round(p.x), Math.round(p.y), Math.round(p.z));
+          currentCubies[idx].rot.normalize();
         });
         
         // Notify the store that the animation is visually complete
@@ -152,12 +151,15 @@ export function Cube3D() {
         animState.current.active = false;
         setAnimating(false);
       }
+      
+      // Force render to show updated refs
+      setTick(t => t + 1);
     }
   });
 
   return (
     <group>
-      {cubies.map((c) => (
+      {cubiesRef.current.map((c) => (
         <CubieRenderer key={c.id} initialPos={c.initialPos} position={c.pos} rotation={c.rot} />
       ))}
     </group>

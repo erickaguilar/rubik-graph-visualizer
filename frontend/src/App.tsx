@@ -33,6 +33,7 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const addMove = useCubeStore(state => state.addMove);
+  const solveCube = useCubeStore(state => state.solveCube);
   const setOnGraphUpdate = useCubeStore(state => state.setOnGraphUpdate);
 
   useEffect(() => {
@@ -69,24 +70,40 @@ function App() {
         {/* Controls UI */}
         <div style={{ 
           position: 'absolute', bottom: 30, left: 20, zIndex: 10, 
-          display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px',
+          display: 'flex', flexDirection: 'column', gap: '15px',
           backgroundColor: 'rgba(0,0,0,0.7)', padding: '15px', borderRadius: '10px'
         }}>
-          {MOVES.map(m => (
-            <button 
-              key={m} 
-              onClick={() => addMove(m)}
-              style={{
-                padding: '10px 15px', fontSize: '16px', fontWeight: 'bold',
-                backgroundColor: '#333', color: 'white', border: '1px solid #555',
-                borderRadius: '5px', cursor: 'pointer', outline: 'none'
-              }}
-              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#555'}
-              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#333'}
-            >
-              {m}
-            </button>
-          ))}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '8px' }}>
+            {MOVES.map(m => (
+              <button 
+                key={m} 
+                onClick={() => addMove(m)}
+                style={{
+                  padding: '10px 15px', fontSize: '16px', fontWeight: 'bold',
+                  backgroundColor: '#333', color: 'white', border: '1px solid #555',
+                  borderRadius: '5px', cursor: 'pointer', outline: 'none'
+                }}
+                onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#555'}
+                onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#333'}
+              >
+                {m}
+              </button>
+            ))}
+          </div>
+          
+          <button 
+            onClick={() => solveCube()}
+            style={{
+              padding: '12px', fontSize: '16px', fontWeight: 'bold',
+              backgroundColor: '#009B48', color: 'white', border: '1px solid #00ff00',
+              borderRadius: '5px', cursor: 'pointer', outline: 'none',
+              textTransform: 'uppercase'
+            }}
+            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#00ff00'}
+            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#009B48'}
+          >
+            🧠 Resolver con IA (A*)
+          </button>
         </div>
 
         <Canvas camera={{ position: [5, 5, 5], fov: 45 }}>

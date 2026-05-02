@@ -101,6 +101,30 @@ class GraphDB:
                     except Exception as e:
                         logger.error(f"Failed to expand move {move}: {e}")
 
+    def find_shortest_path(self, start_hash: str, target_hash: str):
+        """Find the shortest path between two states using ArangoDB native graph traversal."""
+        query = """
+        FOR v, e IN ANY SHORTEST_PATH
+            @start_id TO @target_id
+            GRAPH 'RubikGraph'
+            RETURN {
+                vertex: v._key,
+                edge: e
+            }
+        """
+        bind_vars = {
+            'start_id': f'CubeStates/{start_hash}',
+            'target_id': f'CubeStates/{target_hash}'
+        }
+        
+        try:
+            cursor = self.db.aql.execute(query, bind_vars=bind_vars)
+            path = [doc for doc in cursor]
+            return path
+        except Exception as e:
+            logger.error(f"Failed to find shortest path: {e}")
+            return []
+
 # Expose a singleton instance
 db = None
 def get_db():

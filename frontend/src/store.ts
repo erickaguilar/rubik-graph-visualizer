@@ -11,6 +11,7 @@ interface CubeStore {
   setAnimating: (animating: boolean) => void;
   popMove: () => string | undefined;
   commitMove: (move: string) => void;
+  solveCube: () => Promise<void>;
 }
 
 export const useCubeStore = create<CubeStore>((set, get) => ({
@@ -44,6 +45,28 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
       }
     } catch (e) {
       console.error("Failed to commit move to database", e);
+    }
+  },
+  solveCube: async () => {
+    const { fullSequence, addMove } = get();
+    try {
+      const response = await axios.post('http://localhost:8000/api/solve', { 
+        sequence: fullSequence.join(' ') 
+      });
+      
+      if (response.data.error && response.data.moves.length === 0) {
+        alert(response.data.error);
+        return;
+      }
+
+      // Add each solving move to the animation queue
+      response.data.moves.forEach((move: string) => {
+        addMove(move);
+      });
+      
+    } catch (e) {
+      console.error("Failed to find solution", e);
+      alert("Error contacting the solver API.");
     }
   }
 }));
