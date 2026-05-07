@@ -132,6 +132,10 @@ function App() {
           linkDirectionalArrowRelPos={1}
           linkLabel="move"
           backgroundColor="#000011"
+          nodeResolution={8}
+          linkResolution={3}
+          enablePointerInteraction={true}
+          showNavInfo={false}
         />
       </div>
 

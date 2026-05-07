@@ -24,13 +24,51 @@ class SequenceRequest(BaseModel):
     sequence: str
 
 @app.get("/api/graph")
-def get_graph():
-    """Retrieve all nodes and edges from ArangoDB for the frontend."""
+def get_graph(center_hash: str = None, depth: int = 2):
+    """Retrieve nodes and edges. If center_hash is provided, returns the neighborhood."""
     db = get_db()
     
+    if center_hash:
+        # Fetch neighborhood using AQL traversal
+        query = """
+        FOR v, e IN 0..@depth ANY @start_id GRAPH 'RubikGraph'
+            OPTIONS {uniqueVertices: 'global', bfs: true}
+            RETURN {vertex: v, edge: e}
+        """
+        bind_vars = {
+            'start_id': f'CubeStates/{center_hash}',
+            'depth': depth
+        }
+        cursor = db.db.aql.execute(query, bind_vars=bind_vars)
+        
+        nodes_map = {}
+        links = []
+        
+        for item in cursor:
+            v = item['vertex']
+            e = item['edge']
+            
+            if v['_key'] not in nodes_map:
+                nodes_map[v['_key']] = {
+                    "id": v["_key"],
+                    "is_solved": v["is_solved"],
+                    "val": 10 if v["is_solved"] else 3,
+                    "color": "#00ff00" if v["is_solved"] else "#1f78b4"
+                }
+            
+            if e:
+                links.append({
+                    "source": e["_from"].split("/")[1],
+                    "target": e["_to"].split("/")[1],
+                    "move": e["move"],
+                    "color": "#999999"
+                })
+        
+        return {"nodes": list(nodes_map.values()), "links": links}
+
+    # Fallback to full graph (limited to prevent crashes)
     nodes = []
-    # Using AQL to fetch all vertices and format them
-    cursor = db.db.aql.execute('FOR v IN CubeStates RETURN v')
+    cursor = db.db.aql.execute('FOR v IN CubeStates LIMIT 1000 RETURN v')
     for vertex in cursor:
         nodes.append({
             "id": vertex["_key"],
@@ -40,8 +78,7 @@ def get_graph():
         })
         
     links = []
-    # Using AQL to fetch all edges
-    cursor = db.db.aql.execute('FOR e IN StateTransitions RETURN e')
+    cursor = db.db.aql.execute('FOR e IN StateTransitions LIMIT 2000 RETURN e')
     for edge in cursor:
         links.append({
             "source": edge["_from"].split("/")[1],
@@ -54,11 +91,10 @@ def get_graph():
 
 @app.post("/api/sequence")
 def apply_sequence(req: SequenceRequest):
-    """Apply a sequence of moves from identity, persist to DB, and return the new graph."""
+    """Apply a sequence of moves, persist, and return the neighborhood of the new state."""
     db = get_db()
     cube = CubeState()
     
-    # Save identity state just in case it's empty
     db.save_state(cube.get_hash(), cube.is_solved())
     
     current = cube
@@ -68,15 +104,12 @@ def apply_sequence(req: SequenceRequest):
         if not move:
             continue
         next_state = current.apply_move(move)
-        
-        # Save to graph DB
         db.save_state(next_state.get_hash(), next_state.is_solved())
         db.save_transition(current.get_hash(), next_state.get_hash(), move)
-        
         current = next_state
         
-    # Return the updated graph so the frontend can react immediately
-    return get_graph()
+    # Return neighborhood of the final state instead of the full graph
+    return get_graph(center_hash=current.get_hash(), depth=2)
 
 class SolveRequest(BaseModel):
     sequence: str

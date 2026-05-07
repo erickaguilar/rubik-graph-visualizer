@@ -15,6 +15,9 @@ class GraphDB:
             
         self.db = self.client.db(db_name, username='root', password=password)
         self._init_collections()
+        
+        # In-memory cache for state hashes to avoid redundant DB hits
+        self.known_states = self._load_known_states()
 
     def _init_collections(self):
         # Vertices (States)
@@ -45,15 +48,31 @@ class GraphDB:
         else:
             self.graph = self.db.graph('RubikGraph')
 
+    def _load_known_states(self) -> set:
+        """Load all existing state hashes from the database into memory."""
+        logger.info("Loading known states into cache...")
+        try:
+            # We only need the keys (_key)
+            cursor = self.db.aql.execute('FOR v IN CubeStates RETURN v._key')
+            return set(cursor)
+        except Exception as e:
+            logger.error(f"Failed to load known states: {e}")
+            return set()
+
     def save_state(self, state_hash: str, is_solved: bool):
-        """Save a cube state as a vertex."""
-        # In ArangoDB, '_key' is the primary key.
+        """Save a cube state as a vertex, using cache to skip if already exists."""
+        if state_hash in self.known_states:
+            return
+
         doc = {'_key': state_hash, 'is_solved': is_solved}
         try:
             self.states.insert(doc)
+            self.known_states.add(state_hash)
         except Exception as e:
             if "unique constraint violated" not in str(e).lower():
                 raise e
+            else:
+                self.known_states.add(state_hash)
 
     def save_transition(self, from_hash: str, to_hash: str, move: str):
         """Save a move as a directed edge between two states."""
@@ -63,43 +82,67 @@ class GraphDB:
             'move': move
         }
         try:
-            # We don't specify _key so it auto-generates, but we can query by _from and _to
+            # Note: We don't cache edges as they are more numerous, 
+            # but we could use a composite key if needed.
             self.transitions.insert(edge)
         except Exception as e:
-            # ArangoDB might complain if we try to insert exact duplicates if we had a unique index, 
-            # but by default it generates new keys.
             pass
 
-    def expand_node(self, state_engine, current_state, depth=1):
-        """BFS expansion starting from a state, saving everything to ArangoDB."""
-        # Note: 'state_engine' is the CubeState instance
+    def expand_node(self, current_state, depth=1):
+        """BFS expansion with bulk insertion for massive performance gains."""
         queue = [(current_state, 0)]
-        visited = set()
+        visited_in_batch = set()
         
+        states_to_insert = []
+        transitions_to_insert = []
+        
+        # Helper to avoid duplicates in the same batch
+        local_known = self.known_states.copy()
+
         while queue:
             state, current_depth = queue.pop(0)
             state_hash = state.get_hash()
             
-            if state_hash in visited:
-                continue
-                
-            visited.add(state_hash)
-            self.save_state(state_hash, state.is_solved())
+            if state_hash not in local_known:
+                states_to_insert.append({'_key': state_hash, 'is_solved': state.is_solved()})
+                local_known.add(state_hash)
             
             if current_depth < depth:
                 from src.cube_engine import MOVES
                 for move in MOVES.keys():
-                    try:
-                        next_state = state.apply_move(move)
-                        next_hash = next_state.get_hash()
-                        
-                        self.save_state(next_hash, next_state.is_solved())
-                        self.save_transition(state_hash, next_hash, move)
-                        
-                        if next_hash not in visited:
-                            queue.append((next_state, current_depth + 1))
-                    except Exception as e:
-                        logger.error(f"Failed to expand move {move}: {e}")
+                    next_state = state.apply_move(move)
+                    next_hash = next_state.get_hash()
+                    
+                    # Add transition
+                    transitions_to_insert.append({
+                        '_from': f'CubeStates/{state_hash}',
+                        '_to': f'CubeStates/{next_hash}',
+                        'move': move
+                    })
+                    
+                    if next_hash not in local_known:
+                        # We don't add to states_to_insert yet, it will be added when popped from queue
+                        # or we can add it here to be safe
+                        states_to_insert.append({'_key': next_hash, 'is_solved': next_state.is_solved()})
+                        local_known.add(next_hash)
+                        queue.append((next_state, current_depth + 1))
+
+        # Bulk Insert
+        if states_to_insert:
+            try:
+                # ignore_duplicates=True allows us to be less strict with local_known
+                self.states.import_bulk(states_to_insert, halt_on_error=False)
+                self.known_states.update(local_known)
+                logger.info(f"Bulk inserted {len(states_to_insert)} states.")
+            except Exception as e:
+                logger.error(f"Bulk state insertion failed: {e}")
+
+        if transitions_to_insert:
+            try:
+                self.transitions.import_bulk(transitions_to_insert, halt_on_error=False)
+                logger.info(f"Bulk inserted {len(transitions_to_insert)} transitions.")
+            except Exception as e:
+                logger.error(f"Bulk transition insertion failed: {e}")
 
     def find_shortest_path(self, start_hash: str, target_hash: str):
         """Find the shortest path between two states using ArangoDB native graph traversal."""
