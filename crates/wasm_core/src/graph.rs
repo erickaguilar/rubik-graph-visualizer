@@ -388,6 +388,24 @@ mod tests {
     }
 
     #[test]
+    fn test_solve_after_scramble_sequence() {
+        let mut graph = TopologyGraph::new();
+        let solved = CubeState::new();
+        let target_hash = solved.get_hash();
+
+        let sequence = "U L R F D R' U2 F L2 B D2 R F' L U R2 B' D F2 R";
+        let (current_hash, _) = graph.apply_sequence(sequence).unwrap();
+        assert_ne!(current_hash, target_hash);
+
+        let solution_moves = graph.find_shortest_path(&current_hash, &target_hash).unwrap();
+        println!("Solution moves: {:?}", solution_moves);
+        let scrambled = solved.apply_sequence(sequence).unwrap();
+        let solution_str = solution_moves.join(" ");
+        let restored = scrambled.apply_sequence(&solution_str).unwrap();
+        assert!(restored.is_solved(), "Solution failed to solve the cube!");
+    }
+
+    #[test]
     fn test_center_preserved_after_many_moves() {
         let mut graph = TopologyGraph::new();
         let solved_hash = CubeState::new().get_hash();

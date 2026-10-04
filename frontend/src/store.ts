@@ -60,6 +60,8 @@ interface CubeStore {
   fullSequence: string[];
   redoStack: string[];
   isAnimating: boolean;
+  isSolving: boolean;
+  cubeResetTrigger: number;
   isSavedInDB: boolean;
   animationSpeed: number;
   showLinkLabels: boolean;
@@ -84,7 +86,7 @@ interface CubeStore {
   addMove: (move: string) => void;
   undo: () => void;
   redo: () => void;
-  applyScramble: (moves: string[]) => void;
+  applyScramble: (moves: string[]) => Promise<void>;
   setAnimating: (animating: boolean) => void;
   setAnimationSpeed: (speed: number) => void;
   setShowLinkLabels: (show: boolean) => void;
@@ -124,6 +126,8 @@ export const useCubeStore = create<CubeStore>((set, get) => {
     fullSequence: [],
     redoStack: [],
     isAnimating: false,
+    isSolving: false,
+    cubeResetTrigger: 0,
     isSavedInDB: false,
     animationSpeed: 6.0,
     showLinkLabels: true,
@@ -162,8 +166,8 @@ export const useCubeStore = create<CubeStore>((set, get) => {
       })),
 
     undo: () => {
-      const { fullSequence, moveQueue, isAnimating } = get();
-      if (fullSequence.length === 0 || isAnimating || moveQueue.length > 0) return;
+      const { fullSequence, moveQueue, isAnimating, isSolving } = get();
+      if (fullSequence.length === 0 || isAnimating || isSolving || moveQueue.length > 0) return;
       const lastMove = fullSequence[fullSequence.length - 1];
       const invMove = getInverseMove(lastMove);
       set((state) => ({
@@ -173,8 +177,8 @@ export const useCubeStore = create<CubeStore>((set, get) => {
     },
 
     redo: () => {
-      const { redoStack, moveQueue, isAnimating } = get();
-      if (redoStack.length === 0 || isAnimating || moveQueue.length > 0) return;
+      const { redoStack, moveQueue, isAnimating, isSolving } = get();
+      if (redoStack.length === 0 || isAnimating || isSolving || moveQueue.length > 0) return;
       const nextMove = redoStack[redoStack.length - 1];
       set((state) => ({
         moveQueue: [...state.moveQueue, nextMove],
@@ -182,15 +186,42 @@ export const useCubeStore = create<CubeStore>((set, get) => {
       }));
     },
 
-    applyScramble: (moves) => {
+    applyScramble: async (moves) => {
       const scrambleStr = moves.join(' ');
-      const newMeta = moves.map(() => 'normal' as const);
-      set((state) => ({
-        currentScramble: scrambleStr,
-        moveQueue: [...state.moveQueue, ...moves],
-        moveMetaQueue: [...state.moveMetaQueue, ...newMeta],
-        redoStack: [],
-      }));
+      
+      wasmQueue = wasmQueue.then(async () => {
+        try {
+          const wasm = await getWasmManager();
+          const cleanView = wasm.clear_graph();
+          await clearGraphFromIndexedDB();
+
+          const { onGraphUpdate } = get();
+          if (onGraphUpdate) {
+            onGraphUpdate(cleanView);
+          }
+        } catch (e) {
+          console.error('Failed to reset graph for scramble:', e);
+        }
+
+        // Reset the 3D model and enqueue the scramble from clean solved identity
+        set((state) => ({
+          cubeResetTrigger: state.cubeResetTrigger + 1,
+          fullSequence: [],
+          moveQueue: [...moves],
+          moveMetaQueue: moves.map(() => 'normal' as const),
+          redoStack: [],
+          currentScramble: scrambleStr,
+          isSavedInDB: false,
+          isSolving: false,
+          timerStatus: 'idle',
+          inspectionTimeLeft: 15,
+          moveCount: 0,
+          solveTimeMs: 0,
+          tps: 0,
+        }));
+      });
+
+      return wasmQueue;
     },
 
     startInspection: () => {
@@ -215,7 +246,7 @@ export const useCubeStore = create<CubeStore>((set, get) => {
     },
 
     stopSolving: () => {
-      set({ timerStatus: 'idle' });
+      set({ timerStatus: 'idle', isSolving: false });
     },
 
     resetChallenge: () => {
@@ -226,6 +257,7 @@ export const useCubeStore = create<CubeStore>((set, get) => {
         solveTimeMs: 0,
         moveCount: 0,
         tps: 0,
+        isSolving: false,
       });
     },
 
@@ -277,6 +309,7 @@ export const useCubeStore = create<CubeStore>((set, get) => {
         moveCount,
         currentScramble,
         solveHistory,
+        moveQueue,
       } = get();
 
       let newSequence: string[] = [];
@@ -337,37 +370,44 @@ export const useCubeStore = create<CubeStore>((set, get) => {
             onGraphUpdate(responseData);
           }
 
-          // Check if cube is solved in Speedcubing mode
-          if (updatedTimerStatus === 'solving' && newSequence.length > 0) {
+          // Check if cube is solved in Speedcubing mode or Solver
+          if (newSequence.length > 0) {
             const isSolved = wasm.is_solved(newSequence.join(' '));
             if (isSolved) {
-              const finalTimeMs = performance.now() - updatedStartTime;
-              const elapsedSec = finalTimeMs / 1000;
-              const finalTps = elapsedSec > 0 ? Number((updatedMoveCount / elapsedSec).toFixed(2)) : 0;
+              if (updatedTimerStatus === 'solving') {
+                const finalTimeMs = performance.now() - updatedStartTime;
+                const elapsedSec = finalTimeMs / 1000;
+                const finalTps = elapsedSec > 0 ? Number((updatedMoveCount / elapsedSec).toFixed(2)) : 0;
 
-              const record: SolveRecord = {
-                id: Date.now().toString(),
-                timeMs: Math.round(finalTimeMs),
-                formattedTime: formatTimer(finalTimeMs),
-                moves: updatedMoveCount,
-                tps: finalTps,
-                scramble: currentScramble || undefined,
-                date: new Date().toLocaleTimeString(),
-              };
+                const record: SolveRecord = {
+                  id: Date.now().toString(),
+                  timeMs: Math.round(finalTimeMs),
+                  formattedTime: formatTimer(finalTimeMs),
+                  moves: updatedMoveCount,
+                  tps: finalTps,
+                  scramble: currentScramble || undefined,
+                  date: new Date().toLocaleTimeString(),
+                };
 
-              const newHistory = [record, ...solveHistory];
-              try {
-                localStorage.setItem(STORAGE_KEY_SOLVES, JSON.stringify(newHistory));
-              } catch (e) {
-                console.warn('Failed to save solve to localStorage:', e);
+                const newHistory = [record, ...solveHistory];
+                try {
+                  localStorage.setItem(STORAGE_KEY_SOLVES, JSON.stringify(newHistory));
+                } catch (e) {
+                  console.warn('Failed to save solve to localStorage:', e);
+                }
+
+                set({
+                  timerStatus: 'solved',
+                  solveTimeMs: Math.round(finalTimeMs),
+                  tps: finalTps,
+                  solveHistory: newHistory,
+                });
               }
 
-              set({
-                timerStatus: 'solved',
-                solveTimeMs: Math.round(finalTimeMs),
-                tps: finalTps,
-                solveHistory: newHistory,
-              });
+              // If animation queue has finished all moves, clean fullSequence back to solved
+              if (moveQueue.length === 0) {
+                set({ fullSequence: [], redoStack: [], isSolving: false });
+              }
             }
           }
         } catch (e) {
@@ -379,7 +419,12 @@ export const useCubeStore = create<CubeStore>((set, get) => {
     },
 
     solveCube: async () => {
-      const { fullSequence, addMove } = get();
+      const { fullSequence, addMove, isAnimating, moveQueue, isSolving } = get();
+      if (isAnimating || moveQueue.length > 0 || isSolving || fullSequence.length === 0) {
+        return;
+      }
+
+      set({ isSolving: true });
 
       wasmQueue = wasmQueue.then(async () => {
         try {
@@ -387,6 +432,7 @@ export const useCubeStore = create<CubeStore>((set, get) => {
           const response = wasm.solve(fullSequence.join(' '));
 
           if (response.error && response.moves.length === 0) {
+            set({ isSolving: false });
             alert(response.error);
             return;
           }
@@ -396,6 +442,7 @@ export const useCubeStore = create<CubeStore>((set, get) => {
             addMove(move);
           });
         } catch (e) {
+          set({ isSolving: false });
           console.error('Failed to find solution with Wasm', e);
           alert('Error finding solution with WebAssembly solver.');
         }
@@ -411,12 +458,14 @@ export const useCubeStore = create<CubeStore>((set, get) => {
           await clearGraphFromIndexedDB();
           const initialView = wasm.clear_graph();
 
-          set({
+          set((state) => ({
+            cubeResetTrigger: state.cubeResetTrigger + 1,
             fullSequence: [],
             moveQueue: [],
             moveMetaQueue: [],
             redoStack: [],
             isSavedInDB: false,
+            isSolving: false,
             currentScramble: null,
             timerStatus: 'idle',
             inspectionTimeLeft: 15,
@@ -424,7 +473,7 @@ export const useCubeStore = create<CubeStore>((set, get) => {
             solveTimeMs: 0,
             moveCount: 0,
             tps: 0,
-          });
+          }));
 
           const { onGraphUpdate } = get();
           if (onGraphUpdate) {
@@ -453,15 +502,17 @@ export const useCubeStore = create<CubeStore>((set, get) => {
         const wasm = await getWasmManager();
         const restored = wasm.import_graph(jsonStr);
         await saveGraphToIndexedDB(jsonStr, []);
-        set({
+        set((state) => ({
+          cubeResetTrigger: state.cubeResetTrigger + 1,
           fullSequence: [],
           moveQueue: [],
           moveMetaQueue: [],
           redoStack: [],
           isSavedInDB: true,
+          isSolving: false,
           currentScramble: null,
           timerStatus: 'idle',
-        });
+        }));
 
         const { onGraphUpdate } = get();
         if (onGraphUpdate) {

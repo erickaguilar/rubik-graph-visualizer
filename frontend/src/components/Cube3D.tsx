@@ -66,6 +66,21 @@ function CubieRenderer({ initialPos, position, rotation }: { initialPos: THREE.V
   );
 }
 
+function applyMoveInstant(cubies: { pos: THREE.Vector3; rot: THREE.Quaternion }[], move: string) {
+  const details = getMoveDetails(move);
+  if (!details) return;
+  const q = new THREE.Quaternion().setFromAxisAngle(details.axis, details.targetAngle);
+
+  cubies.forEach((c) => {
+    if (details.filter(c.pos)) {
+      c.pos.applyQuaternion(q);
+      c.pos.set(Math.round(c.pos.x), Math.round(c.pos.y), Math.round(c.pos.z));
+      c.rot.premultiply(q);
+      c.rot.normalize();
+    }
+  });
+}
+
 export function Cube3D() {
   const cubiesRef = useRef(
     (() => {
@@ -83,7 +98,8 @@ export function Cube3D() {
   );
 
   const [, setTick] = useState(0);
-  const { moveQueue, isAnimating, setAnimating, popMove, animationSpeed } = useCubeStore();
+  const cubeResetTrigger = useCubeStore(state => state.cubeResetTrigger);
+  const animationSpeed = useCubeStore(state => state.animationSpeed);
   
   const animState = useRef({
     active: false,
@@ -95,8 +111,29 @@ export function Cube3D() {
     startPositions: [] as THREE.Vector3[]
   });
 
+  // Physical reset listener (triggered by resetGraph or applyScramble)
+  React.useEffect(() => {
+    cubiesRef.current.forEach((c) => {
+      c.pos.copy(c.initialPos);
+      c.rot.set(0, 0, 0, 1);
+    });
+    animState.current.active = false;
+    useCubeStore.getState().setAnimating(false);
+    setTick(t => t + 1);
+  }, [cubeResetTrigger]);
+
+  // Initial sync from IndexedDB if existing moves are loaded
+  React.useEffect(() => {
+    const initialSeq = useCubeStore.getState().fullSequence;
+    if (initialSeq && initialSeq.length > 0) {
+      initialSeq.forEach((m) => applyMoveInstant(cubiesRef.current, m));
+      setTick(t => t + 1);
+    }
+  }, []);
+
   useFrame((_state, delta) => {
     const currentCubies = cubiesRef.current;
+    const { moveQueue, isAnimating, setAnimating, popMove } = useCubeStore.getState();
 
     if (!animState.current.active && moveQueue.length > 0 && !isAnimating) {
       const nextMove = popMove();
@@ -146,7 +183,7 @@ export function Cube3D() {
         
         // Reset animation flags before triggering state updates
         animState.current.active = false;
-        setAnimating(false);
+        useCubeStore.getState().setAnimating(false);
 
         // Notify the store that the animation is visually complete
         const completedMove = animState.current.move;

@@ -62,8 +62,12 @@ function App() {
   const fullSequence = useCubeStore(state => state.fullSequence);
   const redoStack = useCubeStore(state => state.redoStack);
   const isAnimating = useCubeStore(state => state.isAnimating);
+  const isSolving = useCubeStore(state => state.isSolving);
+  const moveQueue = useCubeStore(state => state.moveQueue);
   const isChallengeMode = useCubeStore(state => state.isChallengeMode);
   const setChallengeMode = useCubeStore(state => state.setChallengeMode);
+
+  const isBusy = isAnimating || moveQueue.length > 0 || isSolving;
 
   useEffect(() => {
     setOnGraphUpdate(setGraphData);
@@ -88,7 +92,7 @@ function App() {
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
-      if (isSettingsOpen) return;
+      if (isSettingsOpen || isBusy) return;
 
       // Undo: Ctrl+Z / Cmd+Z (without Shift)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
@@ -117,7 +121,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [keyboardShortcutsEnabled, isSettingsOpen, addMove, undo, redo]);
+  }, [keyboardShortcutsEnabled, isSettingsOpen, isBusy, addMove, undo, redo]);
 
   const handleScrambleClick = () => {
     const scramble = generateWcaScramble(20);
@@ -226,7 +230,7 @@ function App() {
           <div style={{ display: 'flex', gap: '6px' }}>
             <button
               onClick={() => undo()}
-              disabled={fullSequence.length === 0 || isAnimating}
+              disabled={isBusy || fullSequence.length === 0}
               style={{
                 flex: 1,
                 display: 'flex',
@@ -237,12 +241,13 @@ function App() {
                 fontSize: '12px',
                 fontWeight: 600,
                 backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                color: fullSequence.length > 0 && !isAnimating ? '#fff' : '#6b7280',
+                color: !isBusy && fullSequence.length > 0 ? '#fff' : '#6b7280',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '6px',
-                cursor: fullSequence.length > 0 && !isAnimating ? 'pointer' : 'not-allowed',
+                cursor: !isBusy && fullSequence.length > 0 ? 'pointer' : 'not-allowed',
                 fontFamily: "'Montserrat', sans-serif",
                 transition: 'all 0.15s ease',
+                opacity: !isBusy && fullSequence.length > 0 ? 1 : 0.5,
               }}
               title="Deshacer último giro (Ctrl+Z)"
             >
@@ -252,7 +257,7 @@ function App() {
 
             <button
               onClick={() => redo()}
-              disabled={redoStack.length === 0 || isAnimating}
+              disabled={isBusy || redoStack.length === 0}
               style={{
                 flex: 1,
                 display: 'flex',
@@ -263,12 +268,13 @@ function App() {
                 fontSize: '12px',
                 fontWeight: 600,
                 backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                color: redoStack.length > 0 && !isAnimating ? '#fff' : '#6b7280',
+                color: !isBusy && redoStack.length > 0 ? '#fff' : '#6b7280',
                 border: '1px solid rgba(255, 255, 255, 0.1)',
                 borderRadius: '6px',
-                cursor: redoStack.length > 0 && !isAnimating ? 'pointer' : 'not-allowed',
+                cursor: !isBusy && redoStack.length > 0 ? 'pointer' : 'not-allowed',
                 fontFamily: "'Montserrat', sans-serif",
                 transition: 'all 0.15s ease',
+                opacity: !isBusy && redoStack.length > 0 ? 1 : 0.5,
               }}
               title="Rehacer giro (Ctrl+Y)"
             >
@@ -278,7 +284,7 @@ function App() {
 
             <button
               onClick={handleScrambleClick}
-              disabled={isAnimating}
+              disabled={isBusy}
               style={{
                 flex: 1.4,
                 display: 'flex',
@@ -289,14 +295,15 @@ function App() {
                 fontSize: '12px',
                 fontWeight: 700,
                 backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                color: '#38bdf8',
-                border: '1px solid rgba(56, 189, 248, 0.35)',
+                color: isBusy ? '#6b7280' : '#38bdf8',
+                border: isBusy ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(56, 189, 248, 0.35)',
                 borderRadius: '6px',
-                cursor: isAnimating ? 'not-allowed' : 'pointer',
+                cursor: isBusy ? 'not-allowed' : 'pointer',
                 fontFamily: "'Montserrat', sans-serif",
                 transition: 'all 0.15s ease',
+                opacity: isBusy ? 0.6 : 1,
               }}
-              title="Mezcla oficial aleatoria WCA (20 giros)"
+              title="Mezcla oficial aleatoria WCA (20 giros desde estado resuelto)"
             >
               <ShuffleIcon size={14} />
               Mezclar WCA
@@ -331,28 +338,34 @@ function App() {
               <button 
                 key={m} 
                 onClick={() => addMove(m)}
+                disabled={isBusy}
                 style={{
                   padding: '9px 12px',
                   fontSize: '15px',
                   fontWeight: 700,
                   fontFamily: "'Montserrat', sans-serif",
                   backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#f3f4f6',
+                  color: isBusy ? '#6b7280' : '#f3f4f6',
                   border: '1px solid rgba(255, 255, 255, 0.1)',
                   borderRadius: '8px',
-                  cursor: 'pointer',
+                  cursor: isBusy ? 'not-allowed' : 'pointer',
                   outline: 'none',
                   transition: 'all 0.15s ease',
+                  opacity: isBusy ? 0.6 : 1,
                 }}
                 onMouseOver={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(0, 255, 136, 0.15)';
-                  e.currentTarget.style.borderColor = '#00ff88';
-                  e.currentTarget.style.color = '#00ff88';
+                  if (!isBusy) {
+                    e.currentTarget.style.backgroundColor = 'rgba(0, 255, 136, 0.15)';
+                    e.currentTarget.style.borderColor = '#00ff88';
+                    e.currentTarget.style.color = '#00ff88';
+                  }
                 }}
                 onMouseOut={(e) => {
-                  e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
-                  e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                  e.currentTarget.style.color = '#f3f4f6';
+                  if (!isBusy) {
+                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
+                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
+                    e.currentTarget.style.color = '#f3f4f6';
+                  }
                 }}
               >
                 {m}
@@ -364,6 +377,7 @@ function App() {
           <div style={{ display: 'flex', gap: '8px' }}>
             <button 
               onClick={() => solveCube()}
+              disabled={isBusy || fullSequence.length === 0}
               style={{
                 flex: 1,
                 display: 'flex',
@@ -374,28 +388,33 @@ function App() {
                 fontSize: '14px',
                 fontWeight: 700,
                 fontFamily: "'Montserrat', sans-serif",
-                backgroundColor: '#009B48',
-                color: 'white',
-                border: '1px solid #00ff88',
+                backgroundColor: isBusy || fullSequence.length === 0 ? '#1b4329' : '#009B48',
+                color: isBusy || fullSequence.length === 0 ? '#86a890' : 'white',
+                border: isBusy || fullSequence.length === 0 ? '1px solid #235c36' : '1px solid #00ff88',
                 borderRadius: '8px',
-                cursor: 'pointer',
+                cursor: isBusy || fullSequence.length === 0 ? 'not-allowed' : 'pointer',
                 outline: 'none',
                 textTransform: 'uppercase',
                 letterSpacing: '0.03em',
-                boxShadow: '0 4px 14px rgba(0, 155, 72, 0.4)',
+                boxShadow: isBusy || fullSequence.length === 0 ? 'none' : '0 4px 14px rgba(0, 155, 72, 0.4)',
                 transition: 'all 0.2s ease',
+                opacity: isBusy || fullSequence.length === 0 ? 0.7 : 1,
               }}
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = '#00bd58';
-                e.currentTarget.style.transform = 'translateY(-1px)';
+                if (!isBusy && fullSequence.length > 0) {
+                  e.currentTarget.style.backgroundColor = '#00bd58';
+                  e.currentTarget.style.transform = 'translateY(-1px)';
+                }
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = '#009B48';
-                e.currentTarget.style.transform = 'translateY(0)';
+                if (!isBusy && fullSequence.length > 0) {
+                  e.currentTarget.style.backgroundColor = '#009B48';
+                  e.currentTarget.style.transform = 'translateY(0)';
+                }
               }}
             >
               <BoltIcon size={18} />
-              Resolver Cubo (A*)
+              {isSolving ? '⏳ Resolviendo...' : 'Resolver Cubo (A*)'}
             </button>
             
             <button 
@@ -404,6 +423,7 @@ function App() {
                   resetGraph();
                 }
               }}
+              disabled={isBusy}
               style={{
                 display: 'flex',
                 alignItems: 'center',
@@ -414,21 +434,26 @@ function App() {
                 fontWeight: 600,
                 fontFamily: "'Montserrat', sans-serif",
                 backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                color: '#fca5a5',
+                color: isBusy ? '#6b7280' : '#fca5a5',
                 border: '1px solid rgba(239, 68, 68, 0.3)',
                 borderRadius: '8px',
-                cursor: 'pointer',
+                cursor: isBusy ? 'not-allowed' : 'pointer',
                 outline: 'none',
                 transition: 'all 0.2s ease',
+                opacity: isBusy ? 0.5 : 1,
               }}
               title="Borra la memoria de IndexedDB y reinicia el grafo"
               onMouseOver={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
-                e.currentTarget.style.borderColor = '#ef4444';
+                if (!isBusy) {
+                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
+                  e.currentTarget.style.borderColor = '#ef4444';
+                }
               }}
               onMouseOut={(e) => {
-                e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
-                e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                if (!isBusy) {
+                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
+                  e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
+                }
               }}
             >
               <TrashIcon size={16} />

@@ -150,4 +150,42 @@ mod tests {
         assert!(manager.is_solved("R U R' U' R U R' U' R U R' U' R U R' U' R U R' U' R U R' U'"));
         assert!(!manager.is_solved("R U R' U'"));
     }
+
+    #[test]
+    fn test_user_flow_step_by_step() {
+        let mut graph = TopologyGraph::new();
+        let manual_moves = ["U", "L", "R", "F"];
+        let mut seq = Vec::new();
+
+        for m in manual_moves {
+            seq.push(m.to_string());
+            graph.apply_sequence(&seq.join(" ")).unwrap();
+        }
+
+        // 20 WCA scramble moves
+        let scramble = [
+            "D", "R'", "U2", "F", "L2", "B", "D2", "R", "F'", "L",
+            "U", "R2", "B'", "D", "F2", "R", "U'", "L2", "B2", "D'"
+        ];
+
+        for m in scramble {
+            seq.push(m.to_string());
+            graph.apply_sequence(&seq.join(" ")).unwrap();
+        }
+
+        let full_str = seq.join(" ");
+        println!("Full sequence (len={}): {}", seq.len(), full_str);
+
+        let solved = CubeState::new();
+        let target_hash = solved.get_hash();
+        let scrambled_state = solved.apply_sequence(&full_str).unwrap();
+        let current_hash = scrambled_state.get_hash();
+
+        let solution_moves = graph.find_shortest_path(&current_hash, &target_hash).unwrap();
+        println!("Solve moves count: {}", solution_moves.len());
+        println!("Solve moves: {:?}", solution_moves);
+
+        let final_state = scrambled_state.apply_sequence(&solution_moves.join(" ")).unwrap();
+        assert!(final_state.is_solved(), "Cube was NOT solved by the returned moves!");
+    }
 }
