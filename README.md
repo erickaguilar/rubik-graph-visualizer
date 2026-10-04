@@ -28,8 +28,9 @@ Este proyecto trasciende el concepto lúdico tradicional y opera como un **labor
 4. **Ingeniería Inversa de Sistemas "Caja Negra":** Plataforma de experimentación para agentes autónomos que buscan inferir invariantes y leyes de conservación a partir de matrices de transición observables.
 5. **Cómputo Edge de Alto Rendimiento:** Demostración práctica de migración de cargas intensivas desde servidores hacia WebAssembly en el cliente, eliminando costos de infraestructura.
 
-> 📖 Para una profundización matemática y algorítmica completa, consulta el documento:
-> **[`docs/APLICACIONES_Y_VALOR_EXPERIMENTAL.md`](file:///home/erickaguilar/Documentos/rubik-graph-visualizer/docs/APLICACIONES_Y_VALOR_EXPERIMENTAL.md)**
+> 📖 Para una profundización matemática y algorítmica completa, consulta los documentos técnicos:
+> - **[`docs/APLICACIONES_Y_VALOR_EXPERIMENTAL.md`](file:///home/erickaguilar/Documentos/rubik-graph-visualizer/docs/APLICACIONES_Y_VALOR_EXPERIMENTAL.md)**: Fundamentos teóricos, teoría de grupos y aplicaciones de investigación.
+> - **[`docs/CODIFICACION_ESTADOS_Y_TOPOLOGIA.md`](file:///home/erickaguilar/Documentos/rubik-graph-visualizer/docs/CODIFICACION_ESTADOS_Y_TOPOLOGIA.md)**: Especificación de los 54 stickers, codificación hexadecimal y significado de los nodos en la topología.
 
 ---
 

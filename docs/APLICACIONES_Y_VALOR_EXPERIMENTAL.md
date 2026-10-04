@@ -99,3 +99,4 @@ Más allá de las matemáticas, este experimento aporta valor práctico a la ing
 - **McAleer, S., Forest, F., Petersen, A., & Baldi, P.** (2019). *Solving the Rubik's Cube with Deep Reinforcement Learning and Search (DeepCubeA)*. Nature Machine Intelligence.
 - **Charles, D. X., Goren, K. E., & Lauter, K. E.** (2009). *Cryptographic Hash Functions from Expander Graphs*. Journal of Cryptology.
 - **Joyner, D.** (2008). *Adventures in Group Theory: Rubik's Cube, Merlin's Machine, and Other Mathematical Toys*. Johns Hopkins University Press.
+- **Documento complementario:** [`docs/CODIFICACION_ESTADOS_Y_TOPOLOGIA.md`](file:///home/erickaguilar/Documentos/rubik-graph-visualizer/docs/CODIFICACION_ESTADOS_Y_TOPOLOGIA.md) - Especificación de los 54 stickers, codificación hexadecimal y topología de estados.
