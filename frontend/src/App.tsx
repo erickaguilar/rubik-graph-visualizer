@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
-import axios from 'axios';
 import { Cube3D } from './components/Cube3D';
 import { useCubeStore } from './store';
 import './App.css';
@@ -35,24 +34,25 @@ function App() {
   const addMove = useCubeStore(state => state.addMove);
   const solveCube = useCubeStore(state => state.solveCube);
   const setOnGraphUpdate = useCubeStore(state => state.setOnGraphUpdate);
+  const loadInitialGraph = useCubeStore(state => state.loadInitialGraph);
 
   useEffect(() => {
     // Tell the store how to update our local graph data
     setOnGraphUpdate(setGraphData);
 
-    const fetchData = async () => {
+    const initGraph = async () => {
       try {
-        const response = await axios.get('http://localhost:8000/api/graph');
-        setGraphData(response.data);
+        const data = await loadInitialGraph();
+        setGraphData(data);
       } catch (err: any) {
-        setError(err.message || 'Error fetching graph data');
+        setError(err.message || 'Error initializing Wasm graph');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchData();
-  }, [setOnGraphUpdate]);
+    initGraph();
+  }, [setOnGraphUpdate, loadInitialGraph]);
 
   if (loading) return <div className="loader">Cargando datos...</div>;
   if (error) return <div className="error">Error: {error}</div>;

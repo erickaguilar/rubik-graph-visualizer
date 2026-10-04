@@ -1,5 +1,15 @@
 import { create } from 'zustand';
-import axios from 'axios';
+import initWasm, { WasmCubeManager } from './pkg/wasm_core';
+
+let wasmManager: WasmCubeManager | null = null;
+
+async function getWasmManager(): Promise<WasmCubeManager> {
+  if (!wasmManager) {
+    await initWasm();
+    wasmManager = new WasmCubeManager();
+  }
+  return wasmManager;
+}
 
 interface CubeStore {
   moveQueue: string[];
@@ -10,8 +20,9 @@ interface CubeStore {
   addMove: (move: string) => void;
   setAnimating: (animating: boolean) => void;
   popMove: () => string | undefined;
-  commitMove: (move: string) => void;
+  commitMove: (move: string) => Promise<void>;
   solveCube: () => Promise<void>;
+  loadInitialGraph: () => Promise<any>;
 }
 
 export const useCubeStore = create<CubeStore>((set, get) => ({
@@ -28,45 +39,47 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
     set({ moveQueue: moveQueue.slice(1) });
     return move;
   },
+  loadInitialGraph: async () => {
+    const wasm = await getWasmManager();
+    return wasm.get_graph(null, 2);
+  },
   commitMove: async (move) => {
     const { fullSequence, onGraphUpdate } = get();
     const newSequence = [...fullSequence, move];
     set({ fullSequence: newSequence });
     
     try {
-      // Send the sequence to the backend so it computes and saves the state mathematically
-      const response = await axios.post('http://localhost:8000/api/sequence', { 
-        sequence: newSequence.join(' ') 
-      });
+      const wasm = await getWasmManager();
+      // Apply the sequence in Rust WebAssembly
+      const responseData = wasm.apply_sequence(newSequence.join(' '));
       
-      // If the UI gave us a callback to update the force-graph, call it with the new data
+      // Update the 3D force graph immediately with the new neighborhood
       if (onGraphUpdate) {
-        onGraphUpdate(response.data);
+        onGraphUpdate(responseData);
       }
     } catch (e) {
-      console.error("Failed to commit move to database", e);
+      console.error("Failed to commit move to Wasm graph", e);
     }
   },
   solveCube: async () => {
     const { fullSequence, addMove } = get();
     try {
-      const response = await axios.post('http://localhost:8000/api/solve', { 
-        sequence: fullSequence.join(' ') 
-      });
+      const wasm = await getWasmManager();
+      const response = wasm.solve(fullSequence.join(' '));
       
-      if (response.data.error && response.data.moves.length === 0) {
-        alert(response.data.error);
+      if (response.error && response.moves.length === 0) {
+        alert(response.error);
         return;
       }
 
       // Add each solving move to the animation queue
-      response.data.moves.forEach((move: string) => {
+      response.moves.forEach((move: string) => {
         addMove(move);
       });
       
     } catch (e) {
-      console.error("Failed to find solution", e);
-      alert("Error contacting the solver API.");
+      console.error("Failed to find solution with Wasm", e);
+      alert("Error finding solution with WebAssembly solver.");
     }
   }
 }));
