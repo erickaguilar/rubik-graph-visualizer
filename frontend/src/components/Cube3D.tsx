@@ -95,7 +95,7 @@ export function Cube3D() {
     startPositions: [] as THREE.Vector3[]
   });
 
-  useFrame((state, delta) => {
+  useFrame((_state, delta) => {
     const currentCubies = cubiesRef.current;
 
     if (!animState.current.active && moveQueue.length > 0 && !isAnimating) {
