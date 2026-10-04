@@ -38,3 +38,7 @@ arango_data/
 .idea/
 *.suo
 *.swp
+
+# Rust / Cargo
+target/
+crates/**/target/
