@@ -3,6 +3,7 @@
   "type": "module",
   "description": "Rubik's Cube state permutation engine, topology graph and solver in WebAssembly",
   "version": "0.1.0",
+  "license": "Apache-2.0",
   "files": [
     "wasm_core_bg.wasm",
     "wasm_core.js",

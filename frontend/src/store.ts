@@ -6,6 +6,33 @@ import {
   loadGraphFromIndexedDB,
   clearGraphFromIndexedDB,
 } from './utils/indexedDb';
+import { getInverseMove } from './utils/scramble';
+
+export interface SolveRecord {
+  id: string;
+  timeMs: number;
+  formattedTime: string;
+  moves: number;
+  tps: number;
+  scramble?: string;
+  date: string;
+}
+
+const STORAGE_KEY_SOLVES = 'rubik_speedcubing_solves';
+
+export function formatTimer(ms: number): string {
+  const totalSeconds = ms / 1000;
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = Math.floor(totalSeconds % 60);
+  const hundredths = Math.floor((ms % 1000) / 10);
+
+  const pad = (n: number, z = 2) => String(n).padStart(z, '0');
+
+  if (minutes > 0) {
+    return `${minutes}:${pad(seconds)}.${pad(hundredths)}`;
+  }
+  return `${seconds}.${pad(hundredths)}`;
+}
 
 let wasmInstance: WasmCubeManager | null = null;
 let initPromise: Promise<WasmCubeManager> | null = null;
@@ -26,20 +53,51 @@ async function getWasmManager(): Promise<WasmCubeManager> {
 }
 
 interface CubeStore {
+  // Move execution & Undo/Redo
   moveQueue: string[];
+  moveMetaQueue: Array<'normal' | 'undo' | 'redo'>;
+  currentMoveMeta: 'normal' | 'undo' | 'redo';
   fullSequence: string[];
+  redoStack: string[];
   isAnimating: boolean;
   isSavedInDB: boolean;
   animationSpeed: number;
   showLinkLabels: boolean;
   keyboardShortcutsEnabled: boolean;
+
+  // Scramble & Challenge / Speedcubing
+  isChallengeMode: boolean;
+  currentScramble: string | null;
+  timerStatus: 'idle' | 'inspecting' | 'solving' | 'solved';
+  inspectionTimeLeft: number;
+  solveStartTime: number;
+  solveTimeMs: number;
+  moveCount: number;
+  tps: number;
+  solveHistory: SolveRecord[];
+
+  // Graph listener
   onGraphUpdate?: (data: any) => void;
   setOnGraphUpdate: (callback: (data: any) => void) => void;
+
+  // Actions
   addMove: (move: string) => void;
+  undo: () => void;
+  redo: () => void;
+  applyScramble: (moves: string[]) => void;
   setAnimating: (animating: boolean) => void;
   setAnimationSpeed: (speed: number) => void;
   setShowLinkLabels: (show: boolean) => void;
   setKeyboardShortcutsEnabled: (enabled: boolean) => void;
+  setChallengeMode: (enabled: boolean) => void;
+  setTimerStatus: (status: 'idle' | 'inspecting' | 'solving' | 'solved') => void;
+  setInspectionTimeLeft: (time: number) => void;
+  setSolveTimeMs: (ms: number) => void;
+  startInspection: () => void;
+  startSolving: () => void;
+  stopSolving: () => void;
+  resetChallenge: () => void;
+  clearSolveHistory: () => void;
   popMove: () => string | undefined;
   commitMove: (move: string) => Promise<void>;
   solveCube: () => Promise<void>;
@@ -49,144 +107,371 @@ interface CubeStore {
   importGraphJson: (jsonStr: string) => Promise<boolean>;
 }
 
-export const useCubeStore = create<CubeStore>((set, get) => ({
-  moveQueue: [],
-  fullSequence: [],
-  isAnimating: false,
-  isSavedInDB: false,
-  animationSpeed: 6.0,
-  showLinkLabels: true,
-  keyboardShortcutsEnabled: true,
-  setOnGraphUpdate: (callback) => set({ onGraphUpdate: callback }),
-  addMove: (move) => set((state) => ({ moveQueue: [...state.moveQueue, move] })),
-  setAnimating: (isAnimating) => set({ isAnimating }),
-  setAnimationSpeed: (animationSpeed) => set({ animationSpeed }),
-  setShowLinkLabels: (showLinkLabels) => set({ showLinkLabels }),
-  setKeyboardShortcutsEnabled: (keyboardShortcutsEnabled) => set({ keyboardShortcutsEnabled }),
-  popMove: () => {
-    const { moveQueue } = get();
-    if (moveQueue.length === 0) return undefined;
-    const move = moveQueue[0];
-    set({ moveQueue: moveQueue.slice(1) });
-    return move;
-  },
-  loadInitialGraph: async () => {
-    const wasm = await getWasmManager();
+export const useCubeStore = create<CubeStore>((set, get) => {
+  // Load saved solves from localStorage
+  let initialSolves: SolveRecord[] = [];
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY_SOLVES);
+    if (raw) initialSolves = JSON.parse(raw);
+  } catch (e) {
+    console.warn('Could not read solve history from localStorage', e);
+  }
 
-    // Check if previous graph data was saved in IndexedDB
-    const savedData = await loadGraphFromIndexedDB();
-    if (savedData && savedData.graphJson) {
-      try {
-        const restoredGraph = wasm.import_graph(savedData.graphJson);
-        set({ fullSequence: savedData.fullSequence || [], isSavedInDB: true });
-        return restoredGraph;
-      } catch (err) {
-        console.warn('Failed to restore graph from IndexedDB, starting fresh:', err);
-      }
-    }
+  return {
+    moveQueue: [],
+    moveMetaQueue: [],
+    currentMoveMeta: 'normal',
+    fullSequence: [],
+    redoStack: [],
+    isAnimating: false,
+    isSavedInDB: false,
+    animationSpeed: 6.0,
+    showLinkLabels: true,
+    keyboardShortcutsEnabled: true,
 
-    set({ isSavedInDB: false });
-    return wasm.get_graph(null, 2);
-  },
-  commitMove: async (move) => {
-    const { fullSequence, onGraphUpdate } = get();
-    const newSequence = [...fullSequence, move];
-    set({ fullSequence: newSequence });
+    // Challenge Mode & Speedcubing
+    isChallengeMode: false,
+    currentScramble: null,
+    timerStatus: 'idle',
+    inspectionTimeLeft: 15,
+    solveStartTime: 0,
+    solveTimeMs: 0,
+    moveCount: 0,
+    tps: 0,
+    solveHistory: initialSolves,
 
-    // Enqueue the Wasm call sequentially to prevent concurrent borrow errors
-    wasmQueue = wasmQueue.then(async () => {
-      try {
-        const wasm = await getWasmManager();
-        const responseData = wasm.apply_sequence(newSequence.join(' '));
+    setOnGraphUpdate: (callback) => set({ onGraphUpdate: callback }),
+    setAnimating: (isAnimating) => set({ isAnimating }),
+    setAnimationSpeed: (animationSpeed) => set({ animationSpeed }),
+    setShowLinkLabels: (showLinkLabels) => set({ showLinkLabels }),
+    setKeyboardShortcutsEnabled: (keyboardShortcutsEnabled) => set({ keyboardShortcutsEnabled }),
+    setChallengeMode: (isChallengeMode) => set({ isChallengeMode }),
+    setTimerStatus: (timerStatus) => set({ timerStatus }),
+    setInspectionTimeLeft: (inspectionTimeLeft) => set({ inspectionTimeLeft }),
+    setSolveTimeMs: (solveTimeMs) => {
+      const { moveCount } = get();
+      const elapsedSec = solveTimeMs / 1000;
+      const tps = elapsedSec > 0.1 ? Number((moveCount / elapsedSec).toFixed(2)) : 0;
+      set({ solveTimeMs, tps });
+    },
 
-        // Export and persist graph to IndexedDB
+    addMove: (move) =>
+      set((state) => ({
+        moveQueue: [...state.moveQueue, move],
+        moveMetaQueue: [...state.moveMetaQueue, 'normal'],
+      })),
+
+    undo: () => {
+      const { fullSequence, moveQueue, isAnimating } = get();
+      if (fullSequence.length === 0 || isAnimating || moveQueue.length > 0) return;
+      const lastMove = fullSequence[fullSequence.length - 1];
+      const invMove = getInverseMove(lastMove);
+      set((state) => ({
+        moveQueue: [...state.moveQueue, invMove],
+        moveMetaQueue: [...state.moveMetaQueue, 'undo'],
+      }));
+    },
+
+    redo: () => {
+      const { redoStack, moveQueue, isAnimating } = get();
+      if (redoStack.length === 0 || isAnimating || moveQueue.length > 0) return;
+      const nextMove = redoStack[redoStack.length - 1];
+      set((state) => ({
+        moveQueue: [...state.moveQueue, nextMove],
+        moveMetaQueue: [...state.moveMetaQueue, 'redo'],
+      }));
+    },
+
+    applyScramble: (moves) => {
+      const scrambleStr = moves.join(' ');
+      const newMeta = moves.map(() => 'normal' as const);
+      set((state) => ({
+        currentScramble: scrambleStr,
+        moveQueue: [...state.moveQueue, ...moves],
+        moveMetaQueue: [...state.moveMetaQueue, ...newMeta],
+        redoStack: [],
+      }));
+    },
+
+    startInspection: () => {
+      set({
+        timerStatus: 'inspecting',
+        inspectionTimeLeft: 15,
+        solveStartTime: 0,
+        solveTimeMs: 0,
+        moveCount: 0,
+        tps: 0,
+      });
+    },
+
+    startSolving: () => {
+      set({
+        timerStatus: 'solving',
+        solveStartTime: performance.now(),
+        solveTimeMs: 0,
+        moveCount: 0,
+        tps: 0,
+      });
+    },
+
+    stopSolving: () => {
+      set({ timerStatus: 'idle' });
+    },
+
+    resetChallenge: () => {
+      set({
+        timerStatus: 'idle',
+        inspectionTimeLeft: 15,
+        solveStartTime: 0,
+        solveTimeMs: 0,
+        moveCount: 0,
+        tps: 0,
+      });
+    },
+
+    clearSolveHistory: () => {
+      localStorage.removeItem(STORAGE_KEY_SOLVES);
+      set({ solveHistory: [] });
+    },
+
+    popMove: () => {
+      const { moveQueue, moveMetaQueue } = get();
+      if (moveQueue.length === 0) return undefined;
+      const move = moveQueue[0];
+      const meta = moveMetaQueue[0] || 'normal';
+      set({
+        moveQueue: moveQueue.slice(1),
+        moveMetaQueue: moveMetaQueue.slice(1),
+        currentMoveMeta: meta,
+      });
+      return move;
+    },
+
+    loadInitialGraph: async () => {
+      const wasm = await getWasmManager();
+
+      // Check if previous graph data was saved in IndexedDB
+      const savedData = await loadGraphFromIndexedDB();
+      if (savedData && savedData.graphJson) {
         try {
-          const serializedJson = wasm.export_graph();
-          await saveGraphToIndexedDB(serializedJson, newSequence);
-          set({ isSavedInDB: true });
-        } catch (dbErr) {
-          console.warn('Could not persist to IndexedDB:', dbErr);
+          const restoredGraph = wasm.import_graph(savedData.graphJson);
+          set({ fullSequence: savedData.fullSequence || [], isSavedInDB: true });
+          return restoredGraph;
+        } catch (err) {
+          console.warn('Failed to restore graph from IndexedDB, starting fresh:', err);
         }
-
-        if (onGraphUpdate) {
-          onGraphUpdate(responseData);
-        }
-      } catch (e) {
-        console.error('Failed to commit move to Wasm graph', e);
       }
-    });
 
-    return wasmQueue;
-  },
-  solveCube: async () => {
-    const { fullSequence, addMove } = get();
+      set({ isSavedInDB: false });
+      return wasm.get_graph(null, 2);
+    },
 
-    wasmQueue = wasmQueue.then(async () => {
+    commitMove: async (completedMove) => {
+      const {
+        currentMoveMeta,
+        fullSequence,
+        redoStack,
+        onGraphUpdate,
+        timerStatus,
+        solveStartTime,
+        moveCount,
+        currentScramble,
+        solveHistory,
+      } = get();
+
+      let newSequence: string[] = [];
+      let newRedo: string[] = redoStack;
+
+      if (currentMoveMeta === 'undo') {
+        const undoneMove = fullSequence[fullSequence.length - 1];
+        newSequence = fullSequence.slice(0, -1);
+        newRedo = [...redoStack, undoneMove];
+      } else if (currentMoveMeta === 'redo') {
+        const redoneMove = redoStack[redoStack.length - 1];
+        newRedo = redoStack.slice(0, -1);
+        newSequence = [...fullSequence, redoneMove];
+      } else {
+        // Normal move
+        newSequence = [...fullSequence, completedMove];
+        newRedo = []; // clear redo history on new manual move
+      }
+
+      // Handle Challenge Mode timer transitions
+      let updatedTimerStatus = timerStatus;
+      let updatedStartTime = solveStartTime;
+      let updatedMoveCount = moveCount;
+
+      if (timerStatus === 'inspecting') {
+        // First turn immediately triggers the timer!
+        updatedTimerStatus = 'solving';
+        updatedStartTime = performance.now();
+        updatedMoveCount = 1;
+      } else if (timerStatus === 'solving') {
+        updatedMoveCount = moveCount + 1;
+      }
+
+      set({
+        fullSequence: newSequence,
+        redoStack: newRedo,
+        timerStatus: updatedTimerStatus,
+        solveStartTime: updatedStartTime,
+        moveCount: updatedMoveCount,
+      });
+
+      // Enqueue the Wasm call sequentially to prevent concurrent borrow errors
+      wasmQueue = wasmQueue.then(async () => {
+        try {
+          const wasm = await getWasmManager();
+          const responseData = wasm.apply_sequence(newSequence.join(' '));
+
+          // Export and persist graph to IndexedDB
+          try {
+            const serializedJson = wasm.export_graph();
+            await saveGraphToIndexedDB(serializedJson, newSequence);
+            set({ isSavedInDB: true });
+          } catch (dbErr) {
+            console.warn('Could not persist to IndexedDB:', dbErr);
+          }
+
+          if (onGraphUpdate) {
+            onGraphUpdate(responseData);
+          }
+
+          // Check if cube is solved in Speedcubing mode
+          if (updatedTimerStatus === 'solving' && newSequence.length > 0) {
+            const isSolved = wasm.is_solved(newSequence.join(' '));
+            if (isSolved) {
+              const finalTimeMs = performance.now() - updatedStartTime;
+              const elapsedSec = finalTimeMs / 1000;
+              const finalTps = elapsedSec > 0 ? Number((updatedMoveCount / elapsedSec).toFixed(2)) : 0;
+
+              const record: SolveRecord = {
+                id: Date.now().toString(),
+                timeMs: Math.round(finalTimeMs),
+                formattedTime: formatTimer(finalTimeMs),
+                moves: updatedMoveCount,
+                tps: finalTps,
+                scramble: currentScramble || undefined,
+                date: new Date().toLocaleTimeString(),
+              };
+
+              const newHistory = [record, ...solveHistory];
+              try {
+                localStorage.setItem(STORAGE_KEY_SOLVES, JSON.stringify(newHistory));
+              } catch (e) {
+                console.warn('Failed to save solve to localStorage:', e);
+              }
+
+              set({
+                timerStatus: 'solved',
+                solveTimeMs: Math.round(finalTimeMs),
+                tps: finalTps,
+                solveHistory: newHistory,
+              });
+            }
+          }
+        } catch (e) {
+          console.error('Failed to commit move to Wasm graph', e);
+        }
+      });
+
+      return wasmQueue;
+    },
+
+    solveCube: async () => {
+      const { fullSequence, addMove } = get();
+
+      wasmQueue = wasmQueue.then(async () => {
+        try {
+          const wasm = await getWasmManager();
+          const response = wasm.solve(fullSequence.join(' '));
+
+          if (response.error && response.moves.length === 0) {
+            alert(response.error);
+            return;
+          }
+
+          // Add each solving move to the animation queue
+          response.moves.forEach((move: string) => {
+            addMove(move);
+          });
+        } catch (e) {
+          console.error('Failed to find solution with Wasm', e);
+          alert('Error finding solution with WebAssembly solver.');
+        }
+      });
+
+      return wasmQueue;
+    },
+
+    resetGraph: async () => {
+      wasmQueue = wasmQueue.then(async () => {
+        try {
+          const wasm = await getWasmManager();
+          await clearGraphFromIndexedDB();
+          const initialView = wasm.clear_graph();
+
+          set({
+            fullSequence: [],
+            moveQueue: [],
+            moveMetaQueue: [],
+            redoStack: [],
+            isSavedInDB: false,
+            currentScramble: null,
+            timerStatus: 'idle',
+            inspectionTimeLeft: 15,
+            solveStartTime: 0,
+            solveTimeMs: 0,
+            moveCount: 0,
+            tps: 0,
+          });
+
+          const { onGraphUpdate } = get();
+          if (onGraphUpdate) {
+            onGraphUpdate(initialView);
+          }
+        } catch (e) {
+          console.error('Failed to reset graph:', e);
+        }
+      });
+
+      return wasmQueue;
+    },
+
+    exportGraphJson: async () => {
       try {
         const wasm = await getWasmManager();
-        const response = wasm.solve(fullSequence.join(' '));
+        return wasm.export_graph();
+      } catch (e) {
+        console.error('Failed to export graph:', e);
+        return null;
+      }
+    },
 
-        if (response.error && response.moves.length === 0) {
-          alert(response.error);
-          return;
-        }
-
-        // Add each solving move to the animation queue
-        response.moves.forEach((move: string) => {
-          addMove(move);
+    importGraphJson: async (jsonStr: string) => {
+      try {
+        const wasm = await getWasmManager();
+        const restored = wasm.import_graph(jsonStr);
+        await saveGraphToIndexedDB(jsonStr, []);
+        set({
+          fullSequence: [],
+          moveQueue: [],
+          moveMetaQueue: [],
+          redoStack: [],
+          isSavedInDB: true,
+          currentScramble: null,
+          timerStatus: 'idle',
         });
-      } catch (e) {
-        console.error('Failed to find solution with Wasm', e);
-        alert('Error finding solution with WebAssembly solver.');
-      }
-    });
-
-    return wasmQueue;
-  },
-  resetGraph: async () => {
-    wasmQueue = wasmQueue.then(async () => {
-      try {
-        const wasm = await getWasmManager();
-        await clearGraphFromIndexedDB();
-        const initialView = wasm.clear_graph();
-
-        set({ fullSequence: [], moveQueue: [], isSavedInDB: false });
 
         const { onGraphUpdate } = get();
         if (onGraphUpdate) {
-          onGraphUpdate(initialView);
+          onGraphUpdate(restored);
         }
+        return true;
       } catch (e) {
-        console.error('Failed to reset graph:', e);
+        console.error('Failed to import graph:', e);
+        return false;
       }
-    });
-
-    return wasmQueue;
-  },
-  exportGraphJson: async () => {
-    try {
-      const wasm = await getWasmManager();
-      return wasm.export_graph();
-    } catch (e) {
-      console.error('Failed to export graph:', e);
-      return null;
-    }
-  },
-  importGraphJson: async (jsonStr: string) => {
-    try {
-      const wasm = await getWasmManager();
-      const restored = wasm.import_graph(jsonStr);
-      await saveGraphToIndexedDB(jsonStr, []);
-      set({ fullSequence: [], moveQueue: [], isSavedInDB: true });
-
-      const { onGraphUpdate } = get();
-      if (onGraphUpdate) {
-        onGraphUpdate(restored);
-      }
-      return true;
-    } catch (e) {
-      console.error('Failed to import graph:', e);
-      return false;
-    }
-  },
-}));
+    },
+  };
+});

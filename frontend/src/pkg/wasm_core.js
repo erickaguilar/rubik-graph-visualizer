@@ -105,6 +105,17 @@ export class WasmCubeManager {
         }
         return takeFromExternrefTable0(ret[0]);
     }
+    /**
+     * Checks if a given move sequence leaves the cube in the solved state.
+     * @param {string} sequence
+     * @returns {boolean}
+     */
+    is_solved(sequence) {
+        const ptr0 = passStringToWasm0(sequence, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmcubemanager_is_solved(this.__wbg_ptr, ptr0, len0);
+        return ret !== 0;
+    }
     constructor() {
         const ret = wasm.wasmcubemanager_new();
         this.__wbg_ptr = ret;

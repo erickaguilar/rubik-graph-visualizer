@@ -30,6 +30,10 @@ export class WasmCubeManager {
      * Restores graph topology from a stored JSON string (from IndexedDB).
      */
     import_graph(json_str: string): any;
+    /**
+     * Checks if a given move sequence leaves the cube in the solved state.
+     */
+    is_solved(sequence: string): boolean;
     constructor();
     /**
      * Resets the graph back to initial identity state
@@ -53,6 +57,7 @@ export interface InitOutput {
     readonly wasmcubemanager_get_graph: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasmcubemanager_get_solved_hash: (a: number) => [number, number];
     readonly wasmcubemanager_import_graph: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmcubemanager_is_solved: (a: number, b: number, c: number) => number;
     readonly wasmcubemanager_new: () => number;
     readonly wasmcubemanager_reset: (a: number) => void;
     readonly wasmcubemanager_solve: (a: number, b: number, c: number) => [number, number, number];

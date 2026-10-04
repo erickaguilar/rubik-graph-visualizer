@@ -54,6 +54,14 @@ impl WasmCubeManager {
         CubeState::new().get_hash()
     }
 
+    /// Checks if a given move sequence leaves the cube in the solved state.
+    pub fn is_solved(&self, sequence: &str) -> bool {
+        match CubeState::new().apply_sequence(sequence) {
+            Ok(state) => state.is_solved(),
+            Err(_) => false,
+        }
+    }
+
     /// Returns the graph neighborhood around `center_hash` up to `depth`.
     /// If `center_hash` is None/empty, returns the full graph or neighborhood of solved state.
     pub fn get_graph(
@@ -126,5 +134,20 @@ impl WasmCubeManager {
                     .map_err(|e| JsValue::from_str(&e.to_string()))
             }
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_manager_is_solved() {
+        let manager = WasmCubeManager::new();
+        assert!(manager.is_solved(""));
+        assert!(!manager.is_solved("R"));
+        assert!(manager.is_solved("R R'"));
+        assert!(manager.is_solved("R U R' U' R U R' U' R U R' U' R U R' U' R U R' U' R U R' U'"));
+        assert!(!manager.is_solved("R U R' U'"));
     }
 }

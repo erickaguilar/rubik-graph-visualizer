@@ -267,13 +267,18 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 border: '1px solid rgba(255, 255, 255, 0.04)',
               }}
             >
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
                 <div><kbd style={kbdStyle}>U</kbd> / <kbd style={kbdStyle}>Shift+U</kbd> (U')</div>
                 <div><kbd style={kbdStyle}>D</kbd> / <kbd style={kbdStyle}>Shift+D</kbd> (D')</div>
                 <div><kbd style={kbdStyle}>R</kbd> / <kbd style={kbdStyle}>Shift+R</kbd> (R')</div>
                 <div><kbd style={kbdStyle}>L</kbd> / <kbd style={kbdStyle}>Shift+L</kbd> (L')</div>
                 <div><kbd style={kbdStyle}>F</kbd> / <kbd style={kbdStyle}>Shift+F</kbd> (F')</div>
                 <div><kbd style={kbdStyle}>B</kbd> / <kbd style={kbdStyle}>Shift+B</kbd> (B')</div>
+              </div>
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px' }}>
+                <div><kbd style={kbdStyle}>Ctrl+Z</kbd> Deshacer (Undo)</div>
+                <div><kbd style={kbdStyle}>Ctrl+Y</kbd> Rehacer (Redo)</div>
+                <div><kbd style={kbdStyle}>Espacio</kbd> Iniciar Desafío</div>
               </div>
             </div>
           )}

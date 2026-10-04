@@ -11,8 +11,14 @@ import {
   BoltIcon,
   TrashIcon,
   DatabaseIcon,
+  UndoIcon,
+  RedoIcon,
+  ShuffleIcon,
+  TimerIcon,
 } from './components/Icons';
 import { SettingsModal } from './components/SettingsModal';
+import { ChallengePanel } from './components/ChallengePanel';
+import { generateWcaScramble } from './utils/scramble';
 import './App.css';
 
 interface Node {
@@ -43,6 +49,9 @@ function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
   const addMove = useCubeStore(state => state.addMove);
+  const undo = useCubeStore(state => state.undo);
+  const redo = useCubeStore(state => state.redo);
+  const applyScramble = useCubeStore(state => state.applyScramble);
   const solveCube = useCubeStore(state => state.solveCube);
   const resetGraph = useCubeStore(state => state.resetGraph);
   const setOnGraphUpdate = useCubeStore(state => state.setOnGraphUpdate);
@@ -50,9 +59,13 @@ function App() {
   const isSavedInDB = useCubeStore(state => state.isSavedInDB);
   const showLinkLabels = useCubeStore(state => state.showLinkLabels);
   const keyboardShortcutsEnabled = useCubeStore(state => state.keyboardShortcutsEnabled);
+  const fullSequence = useCubeStore(state => state.fullSequence);
+  const redoStack = useCubeStore(state => state.redoStack);
+  const isAnimating = useCubeStore(state => state.isAnimating);
+  const isChallengeMode = useCubeStore(state => state.isChallengeMode);
+  const setChallengeMode = useCubeStore(state => state.setChallengeMode);
 
   useEffect(() => {
-    // Tell the store how to update our local graph data
     setOnGraphUpdate(setGraphData);
 
     const initGraph = async () => {
@@ -69,14 +82,30 @@ function App() {
     initGraph();
   }, [setOnGraphUpdate, loadInitialGraph]);
 
-  // Global Keyboard Shortcuts Listener
+  // Global Keyboard Shortcuts Listener (Moves, Undo, Redo)
   useEffect(() => {
     if (!keyboardShortcutsEnabled) return;
 
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't capture when typing inside inputs
       if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) return;
       if (isSettingsOpen) return;
+
+      // Undo: Ctrl+Z / Cmd+Z (without Shift)
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z' && !e.shiftKey) {
+        e.preventDefault();
+        undo();
+        return;
+      }
+
+      // Redo: Ctrl+Y / Cmd+Y OR Ctrl+Shift+Z / Cmd+Shift+Z
+      if (
+        ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') ||
+        ((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'z')
+      ) {
+        e.preventDefault();
+        redo();
+        return;
+      }
 
       const key = e.key.toUpperCase();
       if (['U', 'D', 'R', 'L', 'F', 'B'].includes(key)) {
@@ -88,7 +117,12 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [keyboardShortcutsEnabled, isSettingsOpen, addMove]);
+  }, [keyboardShortcutsEnabled, isSettingsOpen, addMove, undo, redo]);
+
+  const handleScrambleClick = () => {
+    const scramble = generateWcaScramble(20);
+    applyScramble(scramble);
+  };
 
   if (loading) return <div className="loader">Cargando visualizador Wasm...</div>;
   if (error) return <div className="error">Error: {error}</div>;
@@ -140,6 +174,9 @@ function App() {
       {/* Settings Modal */}
       <SettingsModal isOpen={isSettingsOpen} onClose={() => setIsSettingsOpen(false)} />
 
+      {/* Challenge / Speedcubing HUD */}
+      {isChallengeMode && <ChallengePanel />}
+
       {/* 3D Cube View (Left Panel) */}
       <div style={{ flex: 1, position: 'relative', borderRight: '1px solid rgba(255, 255, 255, 0.08)' }}>
         <div style={{
@@ -175,16 +212,120 @@ function App() {
           zIndex: 10, 
           display: 'flex',
           flexDirection: 'column',
-          gap: '12px',
-          backgroundColor: 'rgba(10, 15, 29, 0.8)',
-          backdropFilter: 'blur(12px)',
-          WebkitBackdropFilter: 'blur(12px)',
+          gap: '10px',
+          backgroundColor: 'rgba(10, 15, 29, 0.85)',
+          backdropFilter: 'blur(14px)',
+          WebkitBackdropFilter: 'blur(14px)',
           padding: '16px',
-          borderRadius: '14px',
-          border: '1px solid rgba(255, 255, 255, 0.1)',
-          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.5)',
-          maxWidth: '360px',
+          borderRadius: '16px',
+          border: '1px solid rgba(255, 255, 255, 0.12)',
+          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
+          maxWidth: '380px',
         }}>
+          {/* Action Header Row: Undo, Redo, Scramble, Challenge Toggle */}
+          <div style={{ display: 'flex', gap: '6px' }}>
+            <button
+              onClick={() => undo()}
+              disabled={fullSequence.length === 0 || isAnimating}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                padding: '7px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                color: fullSequence.length > 0 && !isAnimating ? '#fff' : '#6b7280',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '6px',
+                cursor: fullSequence.length > 0 && !isAnimating ? 'pointer' : 'not-allowed',
+                fontFamily: "'Montserrat', sans-serif",
+                transition: 'all 0.15s ease',
+              }}
+              title="Deshacer último giro (Ctrl+Z)"
+            >
+              <UndoIcon size={14} />
+              Undo
+            </button>
+
+            <button
+              onClick={() => redo()}
+              disabled={redoStack.length === 0 || isAnimating}
+              style={{
+                flex: 1,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '4px',
+                padding: '7px 10px',
+                fontSize: '12px',
+                fontWeight: 600,
+                backgroundColor: 'rgba(255, 255, 255, 0.06)',
+                color: redoStack.length > 0 && !isAnimating ? '#fff' : '#6b7280',
+                border: '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '6px',
+                cursor: redoStack.length > 0 && !isAnimating ? 'pointer' : 'not-allowed',
+                fontFamily: "'Montserrat', sans-serif",
+                transition: 'all 0.15s ease',
+              }}
+              title="Rehacer giro (Ctrl+Y)"
+            >
+              <RedoIcon size={14} />
+              Redo
+            </button>
+
+            <button
+              onClick={handleScrambleClick}
+              disabled={isAnimating}
+              style={{
+                flex: 1.4,
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: '5px',
+                padding: '7px 10px',
+                fontSize: '12px',
+                fontWeight: 700,
+                backgroundColor: 'rgba(56, 189, 248, 0.15)',
+                color: '#38bdf8',
+                border: '1px solid rgba(56, 189, 248, 0.35)',
+                borderRadius: '6px',
+                cursor: isAnimating ? 'not-allowed' : 'pointer',
+                fontFamily: "'Montserrat', sans-serif",
+                transition: 'all 0.15s ease',
+              }}
+              title="Mezcla oficial aleatoria WCA (20 giros)"
+            >
+              <ShuffleIcon size={14} />
+              Mezclar WCA
+            </button>
+
+            <button
+              onClick={() => setChallengeMode(!isChallengeMode)}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                padding: '7px 10px',
+                fontSize: '12px',
+                fontWeight: 700,
+                backgroundColor: isChallengeMode ? 'rgba(0, 255, 136, 0.2)' : 'rgba(255, 255, 255, 0.06)',
+                color: isChallengeMode ? '#00ff88' : '#9ca3af',
+                border: isChallengeMode ? '1px solid #00ff88' : '1px solid rgba(255, 255, 255, 0.1)',
+                borderRadius: '6px',
+                cursor: 'pointer',
+                fontFamily: "'Montserrat', sans-serif",
+                transition: 'all 0.15s ease',
+              }}
+              title={isChallengeMode ? 'Ocultar cronómetro' : 'Activar Modo Desafío Speedcubing'}
+            >
+              <TimerIcon size={14} />
+            </button>
+          </div>
+
+          {/* 3x4 Move Grid */}
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
             {MOVES.map(m => (
               <button 
@@ -219,6 +360,7 @@ function App() {
             ))}
           </div>
           
+          {/* Main Solver & Clear Buttons */}
           <div style={{ display: 'flex', gap: '8px' }}>
             <button 
               onClick={() => solveCube()}

@@ -7,7 +7,7 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc -b && vite build",
-    "build:wasm": "wasm-pack build ../crates/wasm_core --target web --out-dir src/pkg",
+    "build:wasm": "wasm-pack build ../crates/wasm_core --target web --out-dir ../../frontend/src/pkg",
     "lint": "eslint .",
     "preview": "vite preview"
   },

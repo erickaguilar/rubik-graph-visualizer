@@ -8,6 +8,7 @@ export const wasmcubemanager_export_graph: (a: number) => [number, number, numbe
 export const wasmcubemanager_get_graph: (a: number, b: number, c: number, d: number) => [number, number, number];
 export const wasmcubemanager_get_solved_hash: (a: number) => [number, number];
 export const wasmcubemanager_import_graph: (a: number, b: number, c: number) => [number, number, number];
+export const wasmcubemanager_is_solved: (a: number, b: number, c: number) => number;
 export const wasmcubemanager_new: () => number;
 export const wasmcubemanager_reset: (a: number) => void;
 export const wasmcubemanager_solve: (a: number, b: number, c: number) => [number, number, number];
