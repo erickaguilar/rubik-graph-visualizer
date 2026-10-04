@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
@@ -53,12 +53,12 @@ function App() {
   const [splitPercent, setSplitPercent] = useState<number>(50);
   const [isResizing, setIsResizing] = useState<boolean>(false);
 
-  // Graph container measurement to prevent width overflow
+  // Graph container measurement to prevent width overflow and off-center placement
   const graphContainerRef = useRef<HTMLDivElement>(null);
-  const [graphDimensions, setGraphDimensions] = useState<{ width: number; height: number }>({
-    width: 0,
-    height: 0,
-  });
+  const [graphDimensions, setGraphDimensions] = useState<{ width: number; height: number }>(() => ({
+    width: typeof window !== 'undefined' ? Math.floor(window.innerWidth * 0.5) : 800,
+    height: typeof window !== 'undefined' ? window.innerHeight : 600,
+  }));
 
   // ForceGraph3D ref and auto-centering state
   const fgRef = useRef<any>(null);
@@ -66,6 +66,15 @@ function App() {
 
   const centerGraph = (durationMs = 600) => {
     if (!fgRef.current) return;
+    try {
+      const controls: any = fgRef.current.controls();
+      if (controls && controls.target) {
+        controls.target.set(0, 0, 0);
+      }
+    } catch {
+      // ignore
+    }
+
     if (graphData.nodes.length <= 1) {
       // 1 node: identity solved state pinned at (0, 0, 0)
       fgRef.current.cameraPosition(
@@ -75,7 +84,7 @@ function App() {
       );
     } else {
       // Multiple nodes: fit bounding sphere nicely centered
-      fgRef.current.zoomToFit(durationMs, 40);
+      fgRef.current.zoomToFit(durationMs, 50);
     }
   };
 
@@ -155,7 +164,7 @@ function App() {
   }, [keyboardShortcutsEnabled, isSettingsOpen, isBusy, addMove, undo, redo]);
 
   // Measure graphContainer to prevent ForceGraph3D from overflowing width
-  useEffect(() => {
+  useLayoutEffect(() => {
     if (!graphContainerRef.current) return;
     const element = graphContainerRef.current;
 
@@ -192,9 +201,9 @@ function App() {
     if (hasCenteredInitialRef.current) return;
     if (graphDimensions.width > 0 && graphDimensions.height > 0 && graphData.nodes.length > 0 && fgRef.current) {
       const timer = setTimeout(() => {
-        centerGraph(700);
+        centerGraph(500);
         hasCenteredInitialRef.current = true;
-      }, 300);
+      }, 150);
       return () => clearTimeout(timer);
     }
   }, [graphDimensions.width, graphDimensions.height, graphData.nodes.length]);
@@ -410,8 +419,9 @@ function App() {
         </div>
         <ForceGraph3D
           ref={fgRef}
-          width={graphDimensions.width > 0 ? graphDimensions.width : undefined}
-          height={graphDimensions.height > 0 ? graphDimensions.height : undefined}
+          controlType="orbit"
+          width={graphDimensions.width}
+          height={graphDimensions.height}
           graphData={graphData}
           nodeLabel="id"
           nodeColor="color"
@@ -422,7 +432,7 @@ function App() {
           linkDirectionalArrowRelPos={1}
           linkLabel={showLinkLabels ? "move" : undefined}
           backgroundColor="#000011"
-          nodeResolution={8}
+          nodeResolution={16}
           linkResolution={3}
           enablePointerInteraction={true}
           showNavInfo={false}
