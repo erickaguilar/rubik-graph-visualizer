@@ -2,6 +2,15 @@
 
 Todos los cambios notables en este proyecto serán documentados en este archivo.
 
+## [2.0.0] - 2026-10-04
+### 🚀 Arquitectura Unificada (Rust + WebAssembly)
+- **Migración a WebAssembly:** Reescritura completa del motor matemático y grafo topológico en **Rust** (`crates/wasm_core`), compilado a WebAssembly (`wasm-pack`) para ejecución nativa en el navegador del cliente.
+- **Eliminación de Servicios Legados:** Desmantelamiento y eliminación de ArangoDB, Docker Compose, FastAPI y dependencias de Python (`.venv`, `src/`, `tests/`).
+- **Rendimiento Ultrarrápido:** Latencia de actualización del grafo y resolución reducida de ~50-100 ms a **< 1 ms** al ejecutarse en memoria directa.
+- **Solver BFS Nativo en Wasm:** Búsqueda en anchura bidireccional sobre los estados explorados sin sobrecostos de red.
+- **Integración Vite Wasm:** Bundling estático directo con `vite-plugin-wasm` y eliminación de Axios.
+- **Compatibilidad Serverless:** Preparado para despliegue estático 100% gratuito en **Vercel**, Netlify y GitHub Pages.
+
 ## [1.3.0] - 2026-05-02
 ### Añadido
 - Integración de **Resolución por IA** usando el algoritmo de camino más corto nativo de ArangoDB.

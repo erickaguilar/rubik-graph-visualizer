@@ -1,0 +1,12 @@
+{
+  "name": "rubik-graph-visualizer",
+  "version": "2.0.0",
+  "private": true,
+  "description": "High performance Rubik's cube 3D visualizer and graph solver powered by Rust and WebAssembly",
+  "scripts": {
+    "dev": "npm run dev --prefix frontend",
+    "build": "npm run build --prefix frontend",
+    "build:wasm": "wasm-pack build crates/wasm_core --target web --out-dir ../../frontend/src/pkg",
+    "test:wasm": "cargo test --manifest-path crates/wasm_core/Cargo.toml"
+  }
+}
