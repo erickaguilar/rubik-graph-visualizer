@@ -212,6 +212,29 @@
   border: 1px solid rgba(0, 255, 136, 0.3);
 }
 
+/* Center Graph Quick Button */
+.center-graph-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #e5e7eb;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  padding: 2px 8px;
+  font-size: 0.72rem;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.center-graph-btn:hover {
+  background-color: rgba(56, 189, 248, 0.2);
+  border-color: #38bdf8;
+  color: #38bdf8;
+}
+
 /* Controls Floating Panel (Bottom-Left) */
 .controls-container {
   position: absolute;

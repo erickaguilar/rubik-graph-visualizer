@@ -60,6 +60,25 @@ function App() {
     height: 0,
   });
 
+  // ForceGraph3D ref and auto-centering state
+  const fgRef = useRef<any>(null);
+  const hasCenteredInitialRef = useRef<boolean>(false);
+
+  const centerGraph = (durationMs = 600) => {
+    if (!fgRef.current) return;
+    if (graphData.nodes.length <= 1) {
+      // 1 node: identity solved state pinned at (0, 0, 0)
+      fgRef.current.cameraPosition(
+        { x: 0, y: 0, z: 180 },
+        { x: 0, y: 0, z: 0 },
+        durationMs
+      );
+    } else {
+      // Multiple nodes: fit bounding sphere nicely centered
+      fgRef.current.zoomToFit(durationMs, 40);
+    }
+  };
+
   const addMove = useCubeStore(state => state.addMove);
   const undo = useCubeStore(state => state.undo);
   const redo = useCubeStore(state => state.redo);
@@ -167,6 +186,18 @@ function App() {
     ro.observe(element);
     return () => ro.disconnect();
   }, []);
+
+  // Automatically center topology graph when page starts and graph is ready
+  useEffect(() => {
+    if (hasCenteredInitialRef.current) return;
+    if (graphDimensions.width > 0 && graphDimensions.height > 0 && graphData.nodes.length > 0 && fgRef.current) {
+      const timer = setTimeout(() => {
+        centerGraph(700);
+        hasCenteredInitialRef.current = true;
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [graphDimensions.width, graphDimensions.height, graphData.nodes.length]);
 
   const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
     e.preventDefault();
@@ -316,6 +347,7 @@ function App() {
               onClick={() => {
                 if (window.confirm('¿Deseas reiniciar el grafo y borrar la memoria local?')) {
                   resetGraph();
+                  setTimeout(() => centerGraph(500), 100);
                 }
               }}
               disabled={isBusy}
@@ -367,9 +399,17 @@ function App() {
                 IndexedDB
               </span>
             )}
+            <button
+              className="center-graph-btn"
+              onClick={() => centerGraph(600)}
+              title="Centrar la cámara en el origen del grafo (0,0,0)"
+            >
+              Centrar
+            </button>
           </div>
         </div>
         <ForceGraph3D
+          ref={fgRef}
           width={graphDimensions.width > 0 ? graphDimensions.width : undefined}
           height={graphDimensions.height > 0 ? graphDimensions.height : undefined}
           graphData={graphData}
@@ -386,6 +426,12 @@ function App() {
           linkResolution={3}
           enablePointerInteraction={true}
           showNavInfo={false}
+          onEngineStop={() => {
+            if (!hasCenteredInitialRef.current) {
+              centerGraph(600);
+              hasCenteredInitialRef.current = true;
+            }
+          }}
         />
       </div>
 
