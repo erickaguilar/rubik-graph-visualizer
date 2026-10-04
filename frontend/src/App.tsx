@@ -106,7 +106,7 @@ function App() {
               onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#00ff00'}
               onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#009B48'}
             >
-              🧠 Resolver con IA (A*)
+              ⚡ Resolver Cubo (A*)
             </button>
             
             <button 
@@ -129,12 +129,12 @@ function App() {
           </div>
         </div>
 
-        <Canvas camera={{ position: [5, 5, 5], fov: 45 }}>
+        <Canvas camera={{ position: [6.5, 5.5, 6.5], fov: 38 }}>
           <ambientLight intensity={0.7} />
           <pointLight position={[10, 10, 10]} intensity={1} />
           <Environment preset="city" />
           <Cube3D />
-          <OrbitControls makeDefault />
+          <OrbitControls makeDefault target={[0, 0.4, 0]} />
         </Canvas>
       </div>
 

@@ -159,7 +159,7 @@ export function Cube3D() {
   });
 
   return (
-    <group>
+    <group position={[0, 0.4, 0]}>
       {cubiesRef.current.map((c) => (
         <CubieRenderer key={c.id} initialPos={c.initialPos} position={c.pos} rotation={c.rot} />
       ))}
