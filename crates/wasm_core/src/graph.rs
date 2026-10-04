@@ -14,6 +14,7 @@ pub struct TopologyGraph {
     edges: Vec<Edge>,
     // Adjacency for bidirectional traversal: hash -> list of (neighbor_hash, move_to_reach_neighbor)
     adj: HashMap<String, Vec<(String, String)>>,
+    solved_hash: String,
 }
 
 impl Default for TopologyGraph {
@@ -28,11 +29,13 @@ impl TopologyGraph {
             nodes: HashMap::new(),
             edges: Vec::new(),
             adj: HashMap::new(),
+            solved_hash: String::new(),
         };
 
-        // Always register the solved identity state
+        // Always register the solved identity state at the exact 3D origin (0, 0, 0)
         let solved = CubeState::new();
-        graph.add_state(&solved);
+        let hash = graph.add_state(&solved);
+        graph.solved_hash = hash;
         graph
     }
 
@@ -51,6 +54,10 @@ impl TopologyGraph {
                     } else {
                         "#1f78b4".to_string()
                     },
+                    // Pin the solved identity state to (0,0,0) so the graph never drifts or loses the center
+                    fx: if is_solved { Some(0.0) } else { None },
+                    fy: if is_solved { Some(0.0) } else { None },
+                    fz: if is_solved { Some(0.0) } else { None },
                 },
             );
         }
@@ -96,10 +103,12 @@ impl TopologyGraph {
     }
 
     /// Applies a sequence of moves starting from solved identity, records states and transitions,
-    /// and returns (final_state_hash, neighborhood_graph_data).
+    /// and returns (final_state_hash, graph_data).
+    /// The solved center state and the full sequence path are ALWAYS preserved in the view.
     pub fn apply_sequence(&mut self, sequence: &str) -> Result<(String, GraphData), String> {
         let mut current = CubeState::new();
         let mut current_hash = self.add_state(&current);
+        let mut path_nodes = vec![current_hash.clone()];
 
         let moves = sequence.trim().split_whitespace();
         for m in moves {
@@ -113,59 +122,70 @@ impl TopologyGraph {
 
             current = next_state;
             current_hash = next_hash;
+            path_nodes.push(current_hash.clone());
         }
 
-        let neighborhood = self.get_neighborhood(Some(&current_hash), 2);
-        Ok((current_hash, neighborhood))
+        // Generate graph data ensuring the solved center and entire active path are ALWAYS included
+        let view_data = self.get_view(&current_hash, &path_nodes, 3);
+        Ok((current_hash, view_data))
     }
 
-    /// Returns nodes and links within `depth` steps from `center_hash`.
-    /// If `center_hash` is None, returns the entire graph.
-    pub fn get_neighborhood(&self, center_hash: Option<&str>, depth: usize) -> GraphData {
-        let center = match center_hash {
-            Some(h) if self.nodes.contains_key(h) => h,
-            _ => {
-                // Return all registered nodes and links
-                let nodes: Vec<NodeData> = self.nodes.values().cloned().collect();
-                let links: Vec<LinkData> = self
-                    .edges
-                    .iter()
-                    .map(|e| LinkData {
-                        source: e.source.clone(),
-                        target: e.target.clone(),
-                        r#move: e.move_name.clone(),
-                        color: "#999999".to_string(),
-                    })
-                    .collect();
-                return GraphData { nodes, links };
-            }
-        };
+    /// Extracts a view of the graph that guarantees the solved center state and path nodes
+    /// are never dropped, while highlighting the current state.
+    pub fn get_view(&self, current_hash: &str, path_nodes: &[String], depth: usize) -> GraphData {
+        // If graph is small (<= 1000 nodes, standard for interactive sessions), display full graph
+        // This lets the user see their entire exploration tree without arbitrary truncations.
+        let visited_set: HashSet<String> = if self.nodes.len() <= 1000 {
+            self.nodes.keys().cloned().collect()
+        } else {
+            // BFS from current_hash up to `depth`
+            let mut set = HashSet::new();
+            let mut visited_depth: HashMap<String, usize> = HashMap::new();
+            let mut queue: VecDeque<(String, usize)> = VecDeque::new();
 
-        // BFS to find all nodes up to `depth`
-        let mut visited_depth: HashMap<String, usize> = HashMap::new();
-        let mut queue: VecDeque<(String, usize)> = VecDeque::new();
+            visited_depth.insert(current_hash.to_string(), 0);
+            queue.push_back((current_hash.to_string(), 0));
+            set.insert(current_hash.to_string());
 
-        visited_depth.insert(center.to_string(), 0);
-        queue.push_back((center.to_string(), 0));
-
-        while let Some((curr, d)) = queue.pop_front() {
-            if d < depth {
-                if let Some(neighbors) = self.adj.get(&curr) {
-                    for (next_hash, _) in neighbors {
-                        if !visited_depth.contains_key(next_hash) {
-                            visited_depth.insert(next_hash.clone(), d + 1);
-                            queue.push_back((next_hash.clone(), d + 1));
+            while let Some((curr, d)) = queue.pop_front() {
+                if d < depth {
+                    if let Some(neighbors) = self.adj.get(&curr) {
+                        for (next_hash, _) in neighbors {
+                            if !visited_depth.contains_key(next_hash) {
+                                visited_depth.insert(next_hash.clone(), d + 1);
+                                queue.push_back((next_hash.clone(), d + 1));
+                                set.insert(next_hash.clone());
+                            }
                         }
                     }
                 }
             }
-        }
 
-        let visited_set: HashSet<&String> = visited_depth.keys().collect();
+            // CRITICAL: Always preserve the solved center node
+            set.insert(self.solved_hash.clone());
 
+            // Always preserve all nodes in the active path from center to current
+            for p in path_nodes {
+                set.insert(p.clone());
+            }
+
+            set
+        };
+
+        // Construct nodes and highlight the current node
         let nodes: Vec<NodeData> = visited_set
             .iter()
-            .filter_map(|&h| self.nodes.get(h).cloned())
+            .filter_map(|h| {
+                self.nodes.get(h).map(|n| {
+                    let mut node = n.clone();
+                    // If this is the current state and it's not the solved state, highlight in gold/yellow
+                    if node.id == current_hash && !node.is_solved {
+                        node.color = "#FFD500".to_string();
+                        node.val = 6;
+                    }
+                    node
+                })
+            })
             .collect();
 
         // Include edges where both source and target are in visited_set
@@ -182,6 +202,14 @@ impl TopologyGraph {
             .collect();
 
         GraphData { nodes, links }
+    }
+
+    /// Returns nodes and links within `depth` steps from `center_hash`.
+    /// Guaranteed to preserve the solved identity state.
+    pub fn get_neighborhood(&self, center_hash: Option<&str>, depth: usize) -> GraphData {
+        let center = center_hash.unwrap_or(&self.solved_hash);
+        let path = vec![center.to_string(), self.solved_hash.clone()];
+        self.get_view(center, &path, depth)
     }
 
     /// Finds the shortest path of moves from `start_hash` to `target_hash` in the known graph.
@@ -202,7 +230,6 @@ impl TopologyGraph {
         }
 
         // BFS to find the shortest path
-        // parent map: current_hash -> (parent_hash, move_from_parent)
         let mut parent_map: HashMap<String, (String, String)> = HashMap::new();
         let mut visited: HashSet<String> = HashSet::new();
         let mut queue: VecDeque<String> = VecDeque::new();
@@ -262,6 +289,10 @@ mod tests {
         let graph = TopologyGraph::new();
         assert_eq!(graph.nodes.len(), 1);
         assert_eq!(graph.edges.len(), 0);
+        let solved_node = graph.nodes.values().next().unwrap();
+        assert_eq!(solved_node.fx, Some(0.0));
+        assert_eq!(solved_node.fy, Some(0.0));
+        assert_eq!(solved_node.fz, Some(0.0));
     }
 
     #[test]
@@ -286,12 +317,26 @@ mod tests {
     }
 
     #[test]
-    fn test_neighborhood_depth() {
+    fn test_center_preserved_after_many_moves() {
         let mut graph = TopologyGraph::new();
-        let (hash, neighborhood) = graph.apply_sequence("U R F").unwrap();
+        let solved_hash = CubeState::new().get_hash();
 
-        assert!(!neighborhood.nodes.is_empty());
-        assert!(!neighborhood.links.is_empty());
-        assert!(neighborhood.nodes.iter().any(|n| n.id == hash));
+        // Apply 5 consecutive moves: U -> R -> F -> D -> L (far beyond old depth=2)
+        let (current_hash, view) = graph.apply_sequence("U R F D L").unwrap();
+
+        // Check that the solved center is STILL in the graph
+        assert!(
+            view.nodes.iter().any(|n| n.id == solved_hash && n.is_solved),
+            "The solved center state was lost!"
+        );
+
+        // Check that the current state is also present and highlighted
+        assert!(
+            view.nodes.iter().any(|n| n.id == current_hash),
+            "The current state was lost!"
+        );
+
+        // Check that all 5 moves created edges
+        assert!(view.links.len() >= 5);
     }
 }

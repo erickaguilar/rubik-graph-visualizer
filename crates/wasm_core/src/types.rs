@@ -6,6 +6,12 @@ pub struct NodeData {
     pub is_solved: bool,
     pub val: u32,
     pub color: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fx: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fy: Option<f64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub fz: Option<f64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
