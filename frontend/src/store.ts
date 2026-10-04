@@ -30,15 +30,23 @@ interface CubeStore {
   fullSequence: string[];
   isAnimating: boolean;
   isSavedInDB: boolean;
+  animationSpeed: number;
+  showLinkLabels: boolean;
+  keyboardShortcutsEnabled: boolean;
   onGraphUpdate?: (data: any) => void;
   setOnGraphUpdate: (callback: (data: any) => void) => void;
   addMove: (move: string) => void;
   setAnimating: (animating: boolean) => void;
+  setAnimationSpeed: (speed: number) => void;
+  setShowLinkLabels: (show: boolean) => void;
+  setKeyboardShortcutsEnabled: (enabled: boolean) => void;
   popMove: () => string | undefined;
   commitMove: (move: string) => Promise<void>;
   solveCube: () => Promise<void>;
   resetGraph: () => Promise<void>;
   loadInitialGraph: () => Promise<any>;
+  exportGraphJson: () => Promise<string | null>;
+  importGraphJson: (jsonStr: string) => Promise<boolean>;
 }
 
 export const useCubeStore = create<CubeStore>((set, get) => ({
@@ -46,9 +54,15 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
   fullSequence: [],
   isAnimating: false,
   isSavedInDB: false,
+  animationSpeed: 6.0,
+  showLinkLabels: true,
+  keyboardShortcutsEnabled: true,
   setOnGraphUpdate: (callback) => set({ onGraphUpdate: callback }),
   addMove: (move) => set((state) => ({ moveQueue: [...state.moveQueue, move] })),
   setAnimating: (isAnimating) => set({ isAnimating }),
+  setAnimationSpeed: (animationSpeed) => set({ animationSpeed }),
+  setShowLinkLabels: (showLinkLabels) => set({ showLinkLabels }),
+  setKeyboardShortcutsEnabled: (keyboardShortcutsEnabled) => set({ keyboardShortcutsEnabled }),
   popMove: () => {
     const { moveQueue } = get();
     if (moveQueue.length === 0) return undefined;
@@ -148,5 +162,31 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
     });
 
     return wasmQueue;
+  },
+  exportGraphJson: async () => {
+    try {
+      const wasm = await getWasmManager();
+      return wasm.export_graph();
+    } catch (e) {
+      console.error('Failed to export graph:', e);
+      return null;
+    }
+  },
+  importGraphJson: async (jsonStr: string) => {
+    try {
+      const wasm = await getWasmManager();
+      const restored = wasm.import_graph(jsonStr);
+      await saveGraphToIndexedDB(jsonStr, []);
+      set({ fullSequence: [], moveQueue: [], isSavedInDB: true });
+
+      const { onGraphUpdate } = get();
+      if (onGraphUpdate) {
+        onGraphUpdate(restored);
+      }
+      return true;
+    } catch (e) {
+      console.error('Failed to import graph:', e);
+      return false;
+    }
   },
 }));

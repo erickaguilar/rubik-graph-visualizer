@@ -83,7 +83,7 @@ export function Cube3D() {
   );
 
   const [, setTick] = useState(0);
-  const { moveQueue, isAnimating, setAnimating, popMove } = useCubeStore();
+  const { moveQueue, isAnimating, setAnimating, popMove, animationSpeed } = useCubeStore();
   
   const animState = useRef({
     active: false,
@@ -122,7 +122,7 @@ export function Cube3D() {
     }
 
     if (animState.current.active) {
-      const speed = 6.0; // Rotation speed
+      const speed = animationSpeed || 6.0; // Rotation speed
       animState.current.progress += delta * speed;
       
       const { progress, details, cubieIndices, startQuats, startPositions } = animState.current;
