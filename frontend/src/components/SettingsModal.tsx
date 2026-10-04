@@ -9,6 +9,7 @@ import {
   BoltIcon,
   GraphIcon,
 } from './Icons';
+import './SettingsModal.css';
 
 interface SettingsModalProps {
   isOpen: boolean;
@@ -68,115 +69,32 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   };
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 1000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        backgroundColor: 'rgba(0, 0, 5, 0.65)',
-        backdropFilter: 'blur(12px)',
-        WebkitBackdropFilter: 'blur(12px)',
-      }}
-      onClick={onClose}
-    >
-      <div
-        style={{
-          width: '90%',
-          maxWidth: '520px',
-          maxHeight: '90vh',
-          overflowY: 'auto',
-          backgroundColor: 'rgba(17, 24, 39, 0.92)',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          borderRadius: '16px',
-          padding: '24px',
-          boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.7), 0 0 25px rgba(0, 255, 136, 0.1)',
-          color: '#f3f4f6',
-          fontFamily: "'Montserrat', sans-serif",
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
+    <div className="settings-backdrop" onClick={onClose}>
+      <div className="settings-card" onClick={(e) => e.stopPropagation()}>
         {/* Header */}
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            borderBottom: '1px solid rgba(255, 255, 255, 0.08)',
-            paddingBottom: '16px',
-            marginBottom: '20px',
-          }}
-        >
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-            <div
-              style={{
-                width: '36px',
-                height: '36px',
-                borderRadius: '8px',
-                backgroundColor: 'rgba(0, 255, 136, 0.12)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                color: '#00ff88',
-              }}
-            >
+        <div className="settings-header">
+          <div className="settings-header-left">
+            <div className="settings-header-icon-box">
               <BoltIcon size={20} />
             </div>
-            <div>
-              <h3 style={{ margin: 0, fontSize: '1.25rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-                Configuración
-              </h3>
-              <p style={{ margin: 0, fontSize: '0.8rem', color: '#9ca3af' }}>
-                Preferencias del visualizador y datos
-              </p>
+            <div className="settings-header-title-box">
+              <h3>Configuración</h3>
+              <p>Preferencias del visualizador y datos</p>
             </div>
           </div>
 
-          <button
-            onClick={onClose}
-            style={{
-              background: 'none',
-              border: 'none',
-              color: '#9ca3af',
-              cursor: 'pointer',
-              padding: '6px',
-              borderRadius: '8px',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              transition: 'background 0.2s, color 0.2s',
-            }}
-            onMouseOver={(e) => {
-              e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.1)';
-              e.currentTarget.style.color = '#fff';
-            }}
-            onMouseOut={(e) => {
-              e.currentTarget.style.backgroundColor = 'transparent';
-              e.currentTarget.style.color = '#9ca3af';
-            }}
-          >
+          <button className="settings-close-btn" onClick={onClose}>
             <CloseIcon size={20} />
           </button>
         </div>
 
         {/* Section: Velocidad de animación */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-            <label style={{ fontSize: '0.9rem', fontWeight: 600, color: '#e5e7eb' }}>
+        <div className="settings-section">
+          <div className="settings-speed-header">
+            <label className="settings-speed-label">
               Velocidad de Giro 3D
             </label>
-            <span
-              style={{
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                color: '#00ff88',
-                backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                padding: '2px 8px',
-                borderRadius: '10px',
-              }}
-            >
+            <span className="settings-speed-badge">
               {animationSpeed <= 3
                 ? 'Lenta (Didáctica)'
                 : animationSpeed <= 7
@@ -193,13 +111,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             step="1"
             value={animationSpeed}
             onChange={(e) => setAnimationSpeed(Number(e.target.value))}
-            style={{
-              width: '100%',
-              accentColor: '#00ff88',
-              cursor: 'pointer',
-            }}
+            className="settings-range-input"
           />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.75rem', color: '#6b7280', marginTop: '4px' }}>
+          <div className="settings-range-labels">
             <span>Lenta</span>
             <span>Normal</span>
             <span>Ultra</span>
@@ -207,26 +121,15 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         </div>
 
         {/* Section: Opciones de Visualización */}
-        <div style={{ marginBottom: '24px' }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af' }}>
+        <div className="settings-section">
+          <h4 className="settings-section-title">
             Visualización del Grafo
           </h4>
 
-          <label
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 14px',
-              backgroundColor: 'rgba(255, 255, 255, 0.04)',
-              borderRadius: '8px',
-              cursor: 'pointer',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-            }}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+          <label className="settings-toggle-card">
+            <div className="settings-toggle-info">
               <GraphIcon size={18} color="#60a5fa" />
-              <span style={{ fontSize: '0.9rem', color: '#e5e7eb' }}>
+              <span className="settings-toggle-text">
                 Mostrar etiquetas de movimientos en aristas
               </span>
             </div>
@@ -234,17 +137,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               type="checkbox"
               checked={showLinkLabels}
               onChange={(e) => setShowLinkLabels(e.target.checked)}
-              style={{ width: '18px', height: '18px', accentColor: '#00ff88', cursor: 'pointer' }}
+              className="settings-checkbox"
             />
           </label>
         </div>
 
         {/* Section: Atajos de teclado */}
-        <div style={{ marginBottom: '24px' }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        <div className="settings-section">
+          <div className="settings-shortcuts-header">
+            <div className="settings-shortcuts-label-group">
               <KeyboardIcon size={18} color="#f59e0b" />
-              <span style={{ fontSize: '0.9rem', fontWeight: 600, color: '#e5e7eb' }}>
+              <span className="settings-shortcuts-label">
                 Atajos de Teclado
               </span>
             </div>
@@ -252,65 +155,40 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
               type="checkbox"
               checked={keyboardShortcutsEnabled}
               onChange={(e) => setKeyboardShortcutsEnabled(e.target.checked)}
-              style={{ width: '18px', height: '18px', accentColor: '#00ff88', cursor: 'pointer' }}
+              className="settings-checkbox"
             />
           </div>
 
           {keyboardShortcutsEnabled && (
-            <div
-              style={{
-                backgroundColor: 'rgba(0, 0, 0, 0.35)',
-                padding: '12px',
-                borderRadius: '8px',
-                fontSize: '0.78rem',
-                color: '#9ca3af',
-                border: '1px solid rgba(255, 255, 255, 0.04)',
-              }}
-            >
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '6px', marginBottom: '8px' }}>
-                <div><kbd style={kbdStyle}>U</kbd> / <kbd style={kbdStyle}>Shift+U</kbd> (U')</div>
-                <div><kbd style={kbdStyle}>D</kbd> / <kbd style={kbdStyle}>Shift+D</kbd> (D')</div>
-                <div><kbd style={kbdStyle}>R</kbd> / <kbd style={kbdStyle}>Shift+R</kbd> (R')</div>
-                <div><kbd style={kbdStyle}>L</kbd> / <kbd style={kbdStyle}>Shift+L</kbd> (L')</div>
-                <div><kbd style={kbdStyle}>F</kbd> / <kbd style={kbdStyle}>Shift+F</kbd> (F')</div>
-                <div><kbd style={kbdStyle}>B</kbd> / <kbd style={kbdStyle}>Shift+B</kbd> (B')</div>
+            <div className="settings-shortcuts-box">
+              <div className="settings-shortcuts-moves-grid">
+                <div><kbd className="settings-kbd">U</kbd> / <kbd className="settings-kbd">Shift+U</kbd> (U')</div>
+                <div><kbd className="settings-kbd">D</kbd> / <kbd className="settings-kbd">Shift+D</kbd> (D')</div>
+                <div><kbd className="settings-kbd">R</kbd> / <kbd className="settings-kbd">Shift+R</kbd> (R')</div>
+                <div><kbd className="settings-kbd">L</kbd> / <kbd className="settings-kbd">Shift+L</kbd> (L')</div>
+                <div><kbd className="settings-kbd">F</kbd> / <kbd className="settings-kbd">Shift+F</kbd> (F')</div>
+                <div><kbd className="settings-kbd">B</kbd> / <kbd className="settings-kbd">Shift+B</kbd> (B')</div>
               </div>
-              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '10px', borderTop: '1px solid rgba(255,255,255,0.08)', paddingTop: '8px' }}>
-                <div><kbd style={kbdStyle}>Ctrl+Z</kbd> Deshacer (Undo)</div>
-                <div><kbd style={kbdStyle}>Ctrl+Y</kbd> Rehacer (Redo)</div>
-                <div><kbd style={kbdStyle}>Espacio</kbd> Iniciar Desafío</div>
+              <div className="settings-shortcuts-special-row">
+                <div><kbd className="settings-kbd">Ctrl+Z</kbd> Deshacer (Undo)</div>
+                <div><kbd className="settings-kbd">Ctrl+Y</kbd> Rehacer (Redo)</div>
+                <div><kbd className="settings-kbd">Espacio</kbd> Iniciar Desafío</div>
               </div>
             </div>
           )}
         </div>
 
         {/* Section: Persistencia y Gestión de Datos */}
-        <div style={{ marginBottom: '10px' }}>
-          <h4 style={{ margin: '0 0 12px 0', fontSize: '0.85rem', textTransform: 'uppercase', letterSpacing: '0.05em', color: '#9ca3af' }}>
+        <div className="settings-section">
+          <h4 className="settings-section-title">
             Almacenamiento Local (IndexedDB)
           </h4>
 
-          <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
+          <div className="settings-data-container">
+            <div className="settings-data-grid">
               <button
                 onClick={handleExport}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '10px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#fff',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: "'Montserrat', sans-serif",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)')}
-                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)')}
+                className="settings-data-btn"
               >
                 <DownloadIcon size={16} />
                 Exportar JSON
@@ -318,23 +196,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
 
               <button
                 onClick={() => fileInputRef.current?.click()}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  padding: '10px',
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: '#fff',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '8px',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: "'Montserrat', sans-serif",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.12)')}
-                onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)')}
+                className="settings-data-btn"
               >
                 <UploadIcon size={16} />
                 Importar JSON
@@ -343,7 +205,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                 ref={fileInputRef}
                 type="file"
                 accept=".json"
-                style={{ display: 'none' }}
+                className="settings-file-hidden"
                 onChange={handleImportFile}
               />
             </div>
@@ -355,24 +217,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                   onClose();
                 }
               }}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '10px',
-                backgroundColor: 'rgba(239, 68, 68, 0.15)',
-                color: '#fca5a5',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: '8px',
-                fontSize: '0.85rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                marginTop: '4px',
-                fontFamily: "'Montserrat', sans-serif",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)')}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.15)')}
+              className="settings-danger-btn"
             >
               <TrashIcon size={16} />
               Vaciar Memoria Local
@@ -383,12 +228,3 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     </div>
   );
 }
-
-const kbdStyle: React.CSSProperties = {
-  backgroundColor: 'rgba(255, 255, 255, 0.1)',
-  padding: '2px 5px',
-  borderRadius: '4px',
-  color: '#e5e7eb',
-  border: '1px solid rgba(255, 255, 255, 0.15)',
-  fontFamily: 'monospace',
-};

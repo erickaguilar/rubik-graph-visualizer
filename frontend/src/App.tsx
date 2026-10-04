@@ -132,45 +132,14 @@ function App() {
   if (error) return <div className="error">Error: {error}</div>;
 
   return (
-    <div style={{ display: 'flex', width: '100vw', height: '100vh', margin: 0, padding: 0, overflow: 'hidden', backgroundColor: '#000011', fontFamily: "'Montserrat', sans-serif" }}>
+    <div className="app-container">
       
       {/* Floating Top-Right Settings Button */}
       <button
         onClick={() => setIsSettingsOpen(true)}
         aria-label="Abrir Configuración"
         title="Configuración y Atajos"
-        style={{
-          position: 'absolute',
-          top: 20,
-          right: 20,
-          zIndex: 100,
-          width: '44px',
-          height: '44px',
-          borderRadius: '50%',
-          backgroundColor: 'rgba(17, 24, 39, 0.75)',
-          backdropFilter: 'blur(10px)',
-          WebkitBackdropFilter: 'blur(10px)',
-          border: '1px solid rgba(255, 255, 255, 0.15)',
-          color: '#e5e7eb',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          cursor: 'pointer',
-          boxShadow: '0 4px 15px rgba(0, 0, 0, 0.4)',
-          transition: 'all 0.25s cubic-bezier(0.4, 0, 0.2, 1)',
-        }}
-        onMouseOver={(e) => {
-          e.currentTarget.style.backgroundColor = 'rgba(31, 41, 55, 0.9)';
-          e.currentTarget.style.borderColor = 'rgba(0, 255, 136, 0.5)';
-          e.currentTarget.style.color = '#00ff88';
-          e.currentTarget.style.transform = 'scale(1.08) rotate(30deg)';
-        }}
-        onMouseOut={(e) => {
-          e.currentTarget.style.backgroundColor = 'rgba(17, 24, 39, 0.75)';
-          e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
-          e.currentTarget.style.color = '#e5e7eb';
-          e.currentTarget.style.transform = 'scale(1) rotate(0deg)';
-        }}
+        className="settings-toggle-btn"
       >
         <SettingsIcon size={22} />
       </button>
@@ -182,73 +151,25 @@ function App() {
       {isChallengeMode && <ChallengePanel />}
 
       {/* 3D Cube View (Left Panel) */}
-      <div style={{ flex: 1, position: 'relative', borderRight: '1px solid rgba(255, 255, 255, 0.08)' }}>
-        <div style={{
-          position: 'absolute',
-          top: 20,
-          left: 20,
-          zIndex: 10,
-          color: 'white',
-          backgroundColor: 'rgba(10, 15, 29, 0.65)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          padding: '12px 18px',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="cube-panel">
+        <div className="panel-header-badge">
+          <div className="panel-header-title">
             <CubeIcon size={20} color="#00ff88" />
-            <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-              Cubo 3D Interactivo
-            </h2>
+            <h2>Cubo 3D Interactivo</h2>
           </div>
-          <p style={{ margin: '4px 0 0 28px', fontSize: '0.8rem', color: '#9ca3af' }}>
+          <p className="panel-header-subtitle">
             Modelo cinemático sincronizado
           </p>
         </div>
         
         {/* Controls UI */}
-        <div style={{ 
-          position: 'absolute',
-          bottom: 24,
-          left: 20,
-          zIndex: 10, 
-          display: 'flex',
-          flexDirection: 'column',
-          gap: '10px',
-          backgroundColor: 'rgba(10, 15, 29, 0.85)',
-          backdropFilter: 'blur(14px)',
-          WebkitBackdropFilter: 'blur(14px)',
-          padding: '16px',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 12px 32px rgba(0, 0, 0, 0.6)',
-          maxWidth: '380px',
-        }}>
+        <div className="controls-container">
           {/* Action Header Row: Undo, Redo, Scramble, Challenge Toggle */}
-          <div style={{ display: 'flex', gap: '6px' }}>
+          <div className="action-toolbar-row">
             <button
               onClick={() => undo()}
               disabled={isBusy || fullSequence.length === 0}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                padding: '7px 10px',
-                fontSize: '12px',
-                fontWeight: 600,
-                backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                color: !isBusy && fullSequence.length > 0 ? '#fff' : '#6b7280',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '6px',
-                cursor: !isBusy && fullSequence.length > 0 ? 'pointer' : 'not-allowed',
-                fontFamily: "'Montserrat', sans-serif",
-                transition: 'all 0.15s ease',
-                opacity: !isBusy && fullSequence.length > 0 ? 1 : 0.5,
-              }}
+              className="action-btn"
               title="Deshacer último giro (Ctrl+Z)"
             >
               <UndoIcon size={14} />
@@ -258,24 +179,7 @@ function App() {
             <button
               onClick={() => redo()}
               disabled={isBusy || redoStack.length === 0}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '4px',
-                padding: '7px 10px',
-                fontSize: '12px',
-                fontWeight: 600,
-                backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                color: !isBusy && redoStack.length > 0 ? '#fff' : '#6b7280',
-                border: '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '6px',
-                cursor: !isBusy && redoStack.length > 0 ? 'pointer' : 'not-allowed',
-                fontFamily: "'Montserrat', sans-serif",
-                transition: 'all 0.15s ease',
-                opacity: !isBusy && redoStack.length > 0 ? 1 : 0.5,
-              }}
+              className="action-btn"
               title="Rehacer giro (Ctrl+Y)"
             >
               <RedoIcon size={14} />
@@ -285,24 +189,7 @@ function App() {
             <button
               onClick={handleScrambleClick}
               disabled={isBusy}
-              style={{
-                flex: 1.4,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '5px',
-                padding: '7px 10px',
-                fontSize: '12px',
-                fontWeight: 700,
-                backgroundColor: 'rgba(56, 189, 248, 0.15)',
-                color: isBusy ? '#6b7280' : '#38bdf8',
-                border: isBusy ? '1px solid rgba(255, 255, 255, 0.1)' : '1px solid rgba(56, 189, 248, 0.35)',
-                borderRadius: '6px',
-                cursor: isBusy ? 'not-allowed' : 'pointer',
-                fontFamily: "'Montserrat', sans-serif",
-                transition: 'all 0.15s ease',
-                opacity: isBusy ? 0.6 : 1,
-              }}
+              className="action-btn action-btn-scramble"
               title="Mezcla oficial aleatoria WCA (20 giros desde estado resuelto)"
             >
               <ShuffleIcon size={14} />
@@ -311,21 +198,7 @@ function App() {
 
             <button
               onClick={() => setChallengeMode(!isChallengeMode)}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                padding: '7px 10px',
-                fontSize: '12px',
-                fontWeight: 700,
-                backgroundColor: isChallengeMode ? 'rgba(0, 255, 136, 0.2)' : 'rgba(255, 255, 255, 0.06)',
-                color: isChallengeMode ? '#00ff88' : '#9ca3af',
-                border: isChallengeMode ? '1px solid #00ff88' : '1px solid rgba(255, 255, 255, 0.1)',
-                borderRadius: '6px',
-                cursor: 'pointer',
-                fontFamily: "'Montserrat', sans-serif",
-                transition: 'all 0.15s ease',
-              }}
+              className={`action-btn action-btn-timer ${isChallengeMode ? 'active' : ''}`}
               title={isChallengeMode ? 'Ocultar cronómetro' : 'Activar Modo Desafío Speedcubing'}
             >
               <TimerIcon size={14} />
@@ -333,40 +206,13 @@ function App() {
           </div>
 
           {/* 3x4 Move Grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '6px' }}>
+          <div className="moves-grid">
             {MOVES.map(m => (
               <button 
                 key={m} 
                 onClick={() => addMove(m)}
                 disabled={isBusy}
-                style={{
-                  padding: '9px 12px',
-                  fontSize: '15px',
-                  fontWeight: 700,
-                  fontFamily: "'Montserrat', sans-serif",
-                  backgroundColor: 'rgba(255, 255, 255, 0.06)',
-                  color: isBusy ? '#6b7280' : '#f3f4f6',
-                  border: '1px solid rgba(255, 255, 255, 0.1)',
-                  borderRadius: '8px',
-                  cursor: isBusy ? 'not-allowed' : 'pointer',
-                  outline: 'none',
-                  transition: 'all 0.15s ease',
-                  opacity: isBusy ? 0.6 : 1,
-                }}
-                onMouseOver={(e) => {
-                  if (!isBusy) {
-                    e.currentTarget.style.backgroundColor = 'rgba(0, 255, 136, 0.15)';
-                    e.currentTarget.style.borderColor = '#00ff88';
-                    e.currentTarget.style.color = '#00ff88';
-                  }
-                }}
-                onMouseOut={(e) => {
-                  if (!isBusy) {
-                    e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.06)';
-                    e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.1)';
-                    e.currentTarget.style.color = '#f3f4f6';
-                  }
-                }}
+                className="move-btn"
               >
                 {m}
               </button>
@@ -374,44 +220,11 @@ function App() {
           </div>
           
           {/* Main Solver & Clear Buttons */}
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div className="bottom-actions-row">
             <button 
               onClick={() => solveCube()}
               disabled={isBusy || fullSequence.length === 0}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '8px',
-                padding: '12px',
-                fontSize: '14px',
-                fontWeight: 700,
-                fontFamily: "'Montserrat', sans-serif",
-                backgroundColor: isBusy || fullSequence.length === 0 ? '#1b4329' : '#009B48',
-                color: isBusy || fullSequence.length === 0 ? '#86a890' : 'white',
-                border: isBusy || fullSequence.length === 0 ? '1px solid #235c36' : '1px solid #00ff88',
-                borderRadius: '8px',
-                cursor: isBusy || fullSequence.length === 0 ? 'not-allowed' : 'pointer',
-                outline: 'none',
-                textTransform: 'uppercase',
-                letterSpacing: '0.03em',
-                boxShadow: isBusy || fullSequence.length === 0 ? 'none' : '0 4px 14px rgba(0, 155, 72, 0.4)',
-                transition: 'all 0.2s ease',
-                opacity: isBusy || fullSequence.length === 0 ? 0.7 : 1,
-              }}
-              onMouseOver={(e) => {
-                if (!isBusy && fullSequence.length > 0) {
-                  e.currentTarget.style.backgroundColor = '#00bd58';
-                  e.currentTarget.style.transform = 'translateY(-1px)';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!isBusy && fullSequence.length > 0) {
-                  e.currentTarget.style.backgroundColor = '#009B48';
-                  e.currentTarget.style.transform = 'translateY(0)';
-                }
-              }}
+              className="solver-btn"
             >
               <BoltIcon size={18} />
               {isSolving ? '⏳ Resolviendo...' : 'Resolver Cubo (A*)'}
@@ -424,37 +237,8 @@ function App() {
                 }
               }}
               disabled={isBusy}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '12px 14px',
-                fontSize: '13px',
-                fontWeight: 600,
-                fontFamily: "'Montserrat', sans-serif",
-                backgroundColor: 'rgba(239, 68, 68, 0.12)',
-                color: isBusy ? '#6b7280' : '#fca5a5',
-                border: '1px solid rgba(239, 68, 68, 0.3)',
-                borderRadius: '8px',
-                cursor: isBusy ? 'not-allowed' : 'pointer',
-                outline: 'none',
-                transition: 'all 0.2s ease',
-                opacity: isBusy ? 0.5 : 1,
-              }}
+              className="clear-btn"
               title="Borra la memoria de IndexedDB y reinicia el grafo"
-              onMouseOver={(e) => {
-                if (!isBusy) {
-                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.25)';
-                  e.currentTarget.style.borderColor = '#ef4444';
-                }
-              }}
-              onMouseOut={(e) => {
-                if (!isBusy) {
-                  e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.12)';
-                  e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.3)';
-                }
-              }}
             >
               <TrashIcon size={16} />
               Limpiar
@@ -472,44 +256,18 @@ function App() {
       </div>
 
       {/* Topology Graph View (Right Panel) */}
-      <div style={{ flex: 1, position: 'relative' }}>
-        <div style={{
-          position: 'absolute',
-          top: 20,
-          left: 20,
-          zIndex: 10,
-          color: 'white',
-          backgroundColor: 'rgba(10, 15, 29, 0.65)',
-          backdropFilter: 'blur(8px)',
-          WebkitBackdropFilter: 'blur(8px)',
-          padding: '12px 18px',
-          borderRadius: '12px',
-          border: '1px solid rgba(255, 255, 255, 0.08)',
-          boxShadow: '0 8px 24px rgba(0,0,0,0.3)',
-        }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+      <div className="graph-panel">
+        <div className="panel-header-badge">
+          <div className="panel-header-title">
             <GraphIcon size={20} color="#60a5fa" />
-            <h2 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, letterSpacing: '-0.02em' }}>
-              Topología del Grafo
-            </h2>
+            <h2>Topología del Grafo</h2>
           </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '6px' }}>
-            <span style={{ fontSize: '0.85rem', color: '#9ca3af' }}>
-              Nodos: <strong style={{ color: '#fff' }}>{graphData.nodes.length}</strong> | Aristas: <strong style={{ color: '#fff' }}>{graphData.links.length}</strong>
+          <div className="graph-stats-row">
+            <span>
+              Nodos: <strong>{graphData.nodes.length}</strong> | Aristas: <strong>{graphData.links.length}</strong>
             </span>
             {isSavedInDB && (
-              <span style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '5px',
-                fontSize: '0.75rem',
-                fontWeight: 600,
-                backgroundColor: 'rgba(0, 255, 136, 0.1)',
-                color: '#00ff88',
-                padding: '2px 8px',
-                borderRadius: '12px',
-                border: '1px solid rgba(0, 255, 136, 0.3)',
-              }}>
+              <span className="indexeddb-badge">
                 <DatabaseIcon size={12} color="#00ff88" />
                 IndexedDB
               </span>

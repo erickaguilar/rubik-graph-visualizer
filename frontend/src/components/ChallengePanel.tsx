@@ -10,6 +10,7 @@ import {
   TrashIcon,
 } from './Icons';
 import { generateWcaScramble } from '../utils/scramble';
+import './ChallengePanel.css';
 
 export function ChallengePanel() {
   const {
@@ -105,114 +106,49 @@ export function ChallengePanel() {
       ? Math.min(...solveHistory.map((s) => s.timeMs))
       : null;
 
+  const inspectionClass =
+    inspectionTimeLeft <= 3
+      ? 'challenge-inspection-digits critical'
+      : inspectionTimeLeft <= 7
+      ? 'challenge-inspection-digits warning'
+      : 'challenge-inspection-digits';
+
   return (
     <>
-      <div
-        style={{
-          position: 'absolute',
-          top: 18,
-          left: '50%',
-          transform: 'translateX(-50%)',
-          zIndex: 50,
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          gap: '8px',
-          backgroundColor: 'rgba(10, 15, 29, 0.88)',
-          backdropFilter: 'blur(16px)',
-          WebkitBackdropFilter: 'blur(16px)',
-          padding: '12px 20px',
-          borderRadius: '16px',
-          border: '1px solid rgba(255, 255, 255, 0.12)',
-          boxShadow: '0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 255, 136, 0.1)',
-          color: '#f3f4f6',
-          fontFamily: "'Montserrat', sans-serif",
-          maxWidth: '560px',
-          width: '92%',
-        }}
-      >
+      <div className="challenge-hud">
         {/* Top bar with mode label, PB badge, and close button */}
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-            <span
-              style={{
-                display: 'inline-flex',
-                alignItems: 'center',
-                gap: '6px',
-                fontSize: '0.75rem',
-                fontWeight: 700,
-                color: '#00ff88',
-                backgroundColor: 'rgba(0, 255, 136, 0.12)',
-                padding: '3px 10px',
-                borderRadius: '12px',
-                border: '1px solid rgba(0, 255, 136, 0.3)',
-                letterSpacing: '0.04em',
-              }}
-            >
+        <div className="challenge-topbar">
+          <div className="challenge-badges-group">
+            <span className="challenge-badge-speedcubing">
               <TimerIcon size={14} color="#00ff88" />
               MODO SPEEDCUBING
             </span>
 
             {pbTime && (
-              <span
-                style={{
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: '4px',
-                  fontSize: '0.75rem',
-                  fontWeight: 700,
-                  color: '#fbbf24',
-                  backgroundColor: 'rgba(251, 191, 36, 0.12)',
-                  padding: '3px 8px',
-                  borderRadius: '12px',
-                  border: '1px solid rgba(251, 191, 36, 0.3)',
-                }}
-              >
+              <span className="challenge-badge-pb">
                 <TrophyIcon size={12} color="#fbbf24" />
                 PB: {formatTimer(pbTime)}
               </span>
             )}
           </div>
 
-          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <div className="challenge-actions-group">
             {solveHistory.length > 0 && (
               <button
+                className="challenge-history-btn"
                 onClick={() => setShowHistoryModal(true)}
-                style={{
-                  background: 'none',
-                  border: '1px solid rgba(255, 255, 255, 0.15)',
-                  color: '#9ca3af',
-                  fontSize: '0.72rem',
-                  fontWeight: 600,
-                  padding: '3px 8px',
-                  borderRadius: '6px',
-                  cursor: 'pointer',
-                  fontFamily: "'Montserrat', sans-serif",
-                }}
-                onMouseOver={(e) => (e.currentTarget.style.color = '#fff')}
-                onMouseOut={(e) => (e.currentTarget.style.color = '#9ca3af')}
               >
                 Historial ({solveHistory.length})
               </button>
             )}
 
             <button
+              className="challenge-close-btn"
               onClick={() => {
                 resetChallenge();
                 setChallengeMode(false);
               }}
               aria-label="Cerrar Desafío"
-              style={{
-                background: 'none',
-                border: 'none',
-                color: '#9ca3af',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                padding: '2px',
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.color = '#ff6b6b')}
-              onMouseOut={(e) => (e.currentTarget.style.color = '#9ca3af')}
             >
               <CloseIcon size={18} />
             </button>
@@ -220,56 +156,27 @@ export function ChallengePanel() {
         </div>
 
         {/* Central Stopwatch Display */}
-        <div style={{ textAlign: 'center', margin: '4px 0' }}>
+        <div className="challenge-stopwatch-container">
           {timerStatus === 'inspecting' ? (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
-              <span
-                style={{
-                  fontSize: '2.6rem',
-                  fontWeight: 800,
-                  fontFamily: 'monospace',
-                  letterSpacing: '2px',
-                  color:
-                    inspectionTimeLeft <= 3
-                      ? '#ef4444'
-                      : inspectionTimeLeft <= 7
-                      ? '#f59e0b'
-                      : '#38bdf8',
-                  textShadow: '0 0 20px rgba(56, 189, 248, 0.4)',
-                }}
-              >
+            <div className="challenge-inspection-display">
+              <span className={inspectionClass}>
                 {inspectionTimeLeft}s
               </span>
-              <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginTop: '-4px' }}>
+              <span className="challenge-inspection-label">
                 INSPECCIÓN (gira para empezar)
               </span>
             </div>
           ) : (
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+            <div className="challenge-timer-display">
               <span
-                style={{
-                  fontSize: '2.8rem',
-                  fontWeight: 800,
-                  fontFamily: 'monospace',
-                  letterSpacing: '1px',
-                  color: timerStatus === 'solved' ? '#00ff88' : '#ffffff',
-                  textShadow:
-                    timerStatus === 'solved'
-                      ? '0 0 25px rgba(0, 255, 136, 0.6)'
-                      : '0 0 15px rgba(255, 255, 255, 0.2)',
-                }}
+                className={`challenge-timer-digits ${
+                  timerStatus === 'solved' ? 'solved' : ''
+                }`}
               >
                 {formatTimer(solveTimeMs)}
               </span>
               {timerStatus === 'solved' && (
-                <span
-                  style={{
-                    fontSize: '0.85rem',
-                    fontWeight: 700,
-                    color: '#00ff88',
-                    letterSpacing: '0.05em',
-                  }}
-                >
+                <span className="challenge-solved-banner">
                   🎉 ¡CUBO RESUELTO!
                 </span>
               )}
@@ -278,26 +185,14 @@ export function ChallengePanel() {
         </div>
 
         {/* Real-time Metrics: Movimientos y TPS */}
-        <div
-          style={{
-            display: 'flex',
-            justifyContent: 'center',
-            alignItems: 'center',
-            gap: '18px',
-            fontSize: '0.82rem',
-            color: '#d1d5db',
-            borderTop: '1px solid rgba(255, 255, 255, 0.08)',
-            paddingTop: '8px',
-            width: '100%',
-          }}
-        >
+        <div className="challenge-metrics-row">
           <div>
-            Movimientos: <strong style={{ color: '#fff', fontSize: '0.95rem' }}>{moveCount}</strong>
+            Movimientos: <strong className="challenge-metric-val">{moveCount}</strong>
           </div>
-          <div style={{ width: '1px', height: '14px', backgroundColor: 'rgba(255,255,255,0.2)' }} />
+          <div className="challenge-metric-divider" />
           <div>
             TPS (Giros/seg):{' '}
-            <strong style={{ color: '#00ff88', fontSize: '0.95rem' }}>
+            <strong className="challenge-metric-val tps">
               {tps > 0 ? tps.toFixed(2) : '0.00'}
             </strong>
           </div>
@@ -305,48 +200,16 @@ export function ChallengePanel() {
 
         {/* Scramble display line with Copy button */}
         {currentScramble && (
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              backgroundColor: 'rgba(0, 0, 0, 0.4)',
-              padding: '6px 12px',
-              borderRadius: '8px',
-              width: '100%',
-              fontSize: '0.72rem',
-              color: '#9ca3af',
-              fontFamily: 'monospace',
-              border: '1px solid rgba(255, 255, 255, 0.05)',
-              boxSizing: 'border-box',
-            }}
-          >
+          <div className="challenge-scramble-bar">
             <span
-              style={{
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-                maxWidth: '430px',
-                color: '#e5e7eb',
-              }}
+              className="challenge-scramble-text"
               title={currentScramble}
             >
               <strong>WCA:</strong> {currentScramble}
             </span>
             <button
+              className={`challenge-copy-btn ${copied ? 'copied' : ''}`}
               onClick={handleCopyScramble}
-              style={{
-                background: 'none',
-                border: 'none',
-                color: copied ? '#00ff88' : '#9ca3af',
-                cursor: 'pointer',
-                display: 'flex',
-                alignItems: 'center',
-                gap: '4px',
-                fontSize: '0.7rem',
-                fontFamily: "'Montserrat', sans-serif",
-                padding: '2px 4px',
-              }}
               title="Copiar secuencia de mezcla"
             >
               <CopyIcon size={13} />
@@ -356,28 +219,10 @@ export function ChallengePanel() {
         )}
 
         {/* Action Controls */}
-        <div style={{ display: 'flex', gap: '8px', width: '100%', marginTop: '2px' }}>
+        <div className="challenge-controls-row">
           <button
+            className="challenge-btn-new-scramble"
             onClick={handleNewScramble}
-            style={{
-              flex: 1,
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              padding: '8px 12px',
-              backgroundColor: 'rgba(255, 255, 255, 0.08)',
-              color: '#fff',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '8px',
-              fontSize: '0.8rem',
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: "'Montserrat', sans-serif",
-              transition: 'background 0.2s',
-            }}
-            onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.15)')}
-            onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'rgba(255, 255, 255, 0.08)')}
           >
             <ShuffleIcon size={14} />
             Nueva Mezcla WCA
@@ -385,51 +230,16 @@ export function ChallengePanel() {
 
           {timerStatus === 'idle' || timerStatus === 'solved' ? (
             <button
+              className="challenge-btn-start"
               onClick={startInspection}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '8px 12px',
-                backgroundColor: '#009B48',
-                color: '#fff',
-                border: '1px solid #00ff88',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                fontWeight: 700,
-                cursor: 'pointer',
-                fontFamily: "'Montserrat', sans-serif",
-                boxShadow: '0 0 15px rgba(0, 155, 72, 0.3)',
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#00bd58')}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#009B48')}
             >
               <PlayIcon size={14} />
               Iniciar Inspección
             </button>
           ) : (
             <button
+              className="challenge-btn-reset"
               onClick={resetChallenge}
-              style={{
-                flex: 1,
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                gap: '6px',
-                padding: '8px 12px',
-                backgroundColor: 'rgba(239, 68, 68, 0.2)',
-                color: '#fca5a5',
-                border: '1px solid rgba(239, 68, 68, 0.4)',
-                borderRadius: '8px',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: "'Montserrat', sans-serif",
-              }}
-              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.35)')}
-              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = 'rgba(239, 68, 68, 0.2)')}
             >
               Reiniciar Cronómetro
             </button>
@@ -440,110 +250,53 @@ export function ChallengePanel() {
       {/* History Modal */}
       {showHistoryModal && (
         <div
-          style={{
-            position: 'fixed',
-            inset: 0,
-            zIndex: 1100,
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            backgroundColor: 'rgba(0, 0, 5, 0.7)',
-            backdropFilter: 'blur(10px)',
-          }}
+          className="history-modal-backdrop"
           onClick={() => setShowHistoryModal(false)}
         >
           <div
-            style={{
-              width: '90%',
-              maxWidth: '460px',
-              maxHeight: '80vh',
-              overflowY: 'auto',
-              backgroundColor: 'rgba(17, 24, 39, 0.95)',
-              border: '1px solid rgba(255, 255, 255, 0.15)',
-              borderRadius: '16px',
-              padding: '20px',
-              color: '#f3f4f6',
-              fontFamily: "'Montserrat', sans-serif",
-            }}
+            className="history-modal-card"
             onClick={(e) => e.stopPropagation()}
           >
-            <div
-              style={{
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-                borderBottom: '1px solid rgba(255, 255, 255, 0.1)',
-                paddingBottom: '12px',
-                marginBottom: '16px',
-              }}
-            >
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+            <div className="history-modal-header">
+              <div className="history-modal-title">
                 <TrophyIcon size={20} color="#fbbf24" />
-                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>
-                  Historial de Resoluciones
-                </h3>
+                <h3>Historial de Resoluciones</h3>
               </div>
               <button
+                className="history-modal-close-btn"
                 onClick={() => setShowHistoryModal(false)}
-                style={{
-                  background: 'none',
-                  border: 'none',
-                  color: '#9ca3af',
-                  cursor: 'pointer',
-                }}
               >
                 <CloseIcon size={18} />
               </button>
             </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+            <div className="history-list">
               {solveHistory.map((s, idx) => (
                 <div
                   key={s.id || idx}
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    padding: '8px 12px',
-                    backgroundColor: 'rgba(255, 255, 255, 0.04)',
-                    borderRadius: '8px',
-                    border: '1px solid rgba(255, 255, 255, 0.05)',
-                  }}
+                  className="history-item"
                 >
                   <div>
-                    <span style={{ fontSize: '1rem', fontWeight: 700, color: '#00ff88', fontFamily: 'monospace' }}>
+                    <span className="history-item-time">
                       {s.formattedTime}
                     </span>
-                    <span style={{ fontSize: '0.75rem', color: '#9ca3af', marginLeft: '10px' }}>
+                    <span className="history-item-sub">
                       {s.moves} movs • {s.tps.toFixed(2)} TPS
                     </span>
                   </div>
-                  <span style={{ fontSize: '0.72rem', color: '#6b7280' }}>{s.date}</span>
+                  <span className="history-item-date">{s.date}</span>
                 </div>
               ))}
             </div>
 
-            <div style={{ marginTop: '16px', display: 'flex', justifyContent: 'flex-end' }}>
+            <div className="history-modal-footer">
               <button
+                className="history-clear-btn"
                 onClick={() => {
                   if (window.confirm('¿Seguro que deseas borrar el historial de tiempos?')) {
                     clearSolveHistory();
                     setShowHistoryModal(false);
                   }
-                }}
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '6px',
-                  background: 'none',
-                  border: '1px solid rgba(239, 68, 68, 0.3)',
-                  color: '#fca5a5',
-                  padding: '6px 12px',
-                  borderRadius: '6px',
-                  fontSize: '0.75rem',
-                  fontWeight: 600,
-                  cursor: 'pointer',
-                  fontFamily: "'Montserrat', sans-serif",
                 }}
               >
                 <TrashIcon size={14} />

@@ -1,0 +1,443 @@
+/* ==========================================================================
+   Speedcubing Challenge HUD & History Modal Styles
+   ========================================================================== */
+
+.challenge-hud {
+  position: absolute;
+  top: 18px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 50;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background-color: rgba(10, 15, 29, 0.88);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  padding: 12px 20px;
+  border-radius: 16px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  box-shadow: 0 12px 35px rgba(0, 0, 0, 0.6), 0 0 20px rgba(0, 255, 136, 0.1);
+  color: #f3f4f6;
+  font-family: 'Montserrat', sans-serif;
+  max-width: 560px;
+  width: 92%;
+}
+
+/* Top bar: Mode badges and action triggers */
+.challenge-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+}
+
+.challenge-badges-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.challenge-badge-speedcubing {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #00ff88;
+  background-color: rgba(0, 255, 136, 0.12);
+  padding: 3px 10px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+  letter-spacing: 0.04em;
+}
+
+.challenge-badge-pb {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.75rem;
+  font-weight: 700;
+  color: #fbbf24;
+  background-color: rgba(251, 191, 36, 0.12);
+  padding: 3px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(251, 191, 36, 0.3);
+}
+
+.challenge-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.challenge-history-btn {
+  background: none;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #9ca3af;
+  font-size: 0.72rem;
+  font-weight: 600;
+  padding: 3px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.15s ease;
+}
+
+.challenge-history-btn:hover {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.3);
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.challenge-close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  transition: color 0.15s ease;
+}
+
+.challenge-close-btn:hover {
+  color: #ff6b6b;
+}
+
+/* Central Stopwatch Display */
+.challenge-stopwatch-container {
+  text-align: center;
+  margin: 4px 0;
+}
+
+.challenge-inspection-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.challenge-inspection-digits {
+  font-size: 2.6rem;
+  font-weight: 800;
+  font-family: monospace;
+  letter-spacing: 2px;
+  color: #38bdf8;
+  text-shadow: 0 0 20px rgba(56, 189, 248, 0.4);
+}
+
+.challenge-inspection-digits.warning {
+  color: #f59e0b;
+  text-shadow: 0 0 20px rgba(245, 158, 11, 0.4);
+}
+
+.challenge-inspection-digits.critical {
+  color: #ef4444;
+  text-shadow: 0 0 20px rgba(239, 68, 68, 0.4);
+}
+
+.challenge-inspection-label {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-top: -4px;
+}
+
+.challenge-timer-display {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.challenge-timer-digits {
+  font-size: 2.8rem;
+  font-weight: 800;
+  font-family: monospace;
+  letter-spacing: 1px;
+  color: #ffffff;
+  text-shadow: 0 0 15px rgba(255, 255, 255, 0.2);
+}
+
+.challenge-timer-digits.solved {
+  color: #00ff88;
+  text-shadow: 0 0 25px rgba(0, 255, 136, 0.6);
+}
+
+.challenge-solved-banner {
+  font-size: 0.85rem;
+  font-weight: 700;
+  color: #00ff88;
+  letter-spacing: 0.05em;
+}
+
+/* Real-time Metrics: Movimientos y TPS */
+.challenge-metrics-row {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 18px;
+  font-size: 0.82rem;
+  color: #d1d5db;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+  padding-top: 8px;
+  width: 100%;
+}
+
+.challenge-metric-divider {
+  width: 1px;
+  height: 14px;
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.challenge-metric-val {
+  color: #fff;
+  font-size: 0.95rem;
+}
+
+.challenge-metric-val.tps {
+  color: #00ff88;
+}
+
+/* Scramble display line with Copy button */
+.challenge-scramble-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: rgba(0, 0, 0, 0.4);
+  padding: 6px 12px;
+  border-radius: 8px;
+  width: 100%;
+  font-size: 0.72rem;
+  color: #9ca3af;
+  font-family: monospace;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  box-sizing: border-box;
+}
+
+.challenge-scramble-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 430px;
+  color: #e5e7eb;
+}
+
+.challenge-copy-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.7rem;
+  font-family: 'Montserrat', sans-serif;
+  padding: 2px 4px;
+  transition: color 0.15s ease;
+}
+
+.challenge-copy-btn:hover {
+  color: #fff;
+}
+
+.challenge-copy-btn.copied {
+  color: #00ff88;
+}
+
+/* Action Controls */
+.challenge-controls-row {
+  display: flex;
+  gap: 8px;
+  width: 100%;
+  margin-top: 2px;
+}
+
+.challenge-btn-new-scramble {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.08);
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  transition: background-color 0.2s ease;
+}
+
+.challenge-btn-new-scramble:hover {
+  background-color: rgba(255, 255, 255, 0.15);
+}
+
+.challenge-btn-start {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: #009B48;
+  color: #fff;
+  border: 1px solid #00ff88;
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  box-shadow: 0 0 15px rgba(0, 155, 72, 0.3);
+  transition: background-color 0.2s ease;
+}
+
+.challenge-btn-start:hover {
+  background-color: #00bd58;
+}
+
+.challenge-btn-reset {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 8px 12px;
+  background-color: rgba(239, 68, 68, 0.2);
+  color: #fca5a5;
+  border: 1px solid rgba(239, 68, 68, 0.4);
+  border-radius: 8px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  transition: background-color 0.2s ease;
+}
+
+.challenge-btn-reset:hover {
+  background-color: rgba(239, 68, 68, 0.35);
+}
+
+/* History Modal */
+.history-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1100;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background-color: rgba(0, 0, 5, 0.7);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+
+.history-modal-card {
+  width: 90%;
+  maxWidth: 460px;
+  max-height: 80vh;
+  overflow-y: auto;
+  background-color: rgba(17, 24, 39, 0.95);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 16px;
+  padding: 20px;
+  color: #f3f4f6;
+  font-family: 'Montserrat', sans-serif;
+}
+
+.history-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  padding-bottom: 12px;
+  margin-bottom: 16px;
+}
+
+.history-modal-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.history-modal-title h3 {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.history-modal-close-btn {
+  background: none;
+  border: none;
+  color: #9ca3af;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  padding: 2px;
+  transition: color 0.15s ease;
+}
+
+.history-modal-close-btn:hover {
+  color: #fff;
+}
+
+.history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.history-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 8px 12px;
+  background-color: rgba(255, 255, 255, 0.04);
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.history-item-time {
+  font-size: 1rem;
+  font-weight: 700;
+  color: #00ff88;
+  font-family: monospace;
+}
+
+.history-item-sub {
+  font-size: 0.75rem;
+  color: #9ca3af;
+  margin-left: 10px;
+}
+
+.history-item-date {
+  font-size: 0.72rem;
+  color: #6b7280;
+}
+
+.history-modal-footer {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+
+.history-clear-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #fca5a5;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.2s ease;
+}
+
+.history-clear-btn:hover {
+  background-color: rgba(239, 68, 68, 0.2);
+  border-color: #ef4444;
+}

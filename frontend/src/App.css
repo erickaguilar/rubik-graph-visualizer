@@ -1,1 +1,342 @@
-/* Cleared to avoid conflicts */
+/* ==========================================================================
+   Rubik Graph Visualizer - Main Layout & Controls Styles
+   ========================================================================== */
+
+:root {
+  --bg-deep: #000011;
+  --bg-card: rgba(10, 15, 29, 0.85);
+  --bg-card-blur: blur(14px);
+  --border-subtle: rgba(255, 255, 255, 0.1);
+  --border-strong: rgba(255, 255, 255, 0.15);
+  
+  --primary: #00ff88;
+  --primary-hover: #00bd58;
+  --primary-bg: #009B48;
+  --primary-glow: rgba(0, 255, 136, 0.35);
+  --primary-muted-bg: rgba(0, 255, 136, 0.12);
+  
+  --accent-cyan: #38bdf8;
+  --accent-cyan-bg: rgba(56, 189, 248, 0.15);
+  --accent-cyan-border: rgba(56, 189, 248, 0.35);
+
+  --accent-blue: #60a5fa;
+  --accent-gold: #fbbf24;
+  --danger-color: #fca5a5;
+  --danger-border: rgba(239, 68, 68, 0.3);
+  --danger-bg: rgba(239, 68, 68, 0.12);
+  --danger-hover-bg: rgba(239, 68, 68, 0.25);
+
+  --text-main: #f3f4f6;
+  --text-muted: #9ca3af;
+  --text-subtle: #6b7280;
+
+  --btn-bg: rgba(255, 255, 255, 0.06);
+  --btn-border: rgba(255, 255, 255, 0.1);
+  --btn-hover-bg: rgba(0, 255, 136, 0.15);
+  --btn-hover-border: var(--primary);
+  --btn-hover-color: var(--primary);
+}
+
+/* App Main Container */
+.app-container {
+  display: flex;
+  width: 100vw;
+  height: 100vh;
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
+  background-color: var(--bg-deep);
+  font-family: 'Montserrat', sans-serif;
+}
+
+/* Floating Top-Right Settings Toggle Button */
+.settings-toggle-btn {
+  position: absolute;
+  top: 20px;
+  right: 20px;
+  z-index: 100;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  background-color: rgba(17, 24, 39, 0.75);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-strong);
+  color: #e5e7eb;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.settings-toggle-btn:hover {
+  background-color: rgba(31, 41, 55, 0.9);
+  border-color: rgba(0, 255, 136, 0.5);
+  color: var(--primary);
+  transform: scale(1.08) rotate(30deg);
+}
+
+/* Left Panel: 3D Cube Scene */
+.cube-panel {
+  flex: 1;
+  position: relative;
+  border-right: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* Right Panel: Topology Graph */
+.graph-panel {
+  flex: 1;
+  position: relative;
+}
+
+/* Panel Header Card (Glassmorphism) */
+.panel-header-badge {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  z-index: 10;
+  color: white;
+  background-color: rgba(10, 15, 29, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 12px 18px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+}
+
+.panel-header-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.panel-header-title h2 {
+  margin: 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.panel-header-subtitle {
+  margin: 4px 0 0 28px;
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.graph-stats-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 6px;
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+.graph-stats-row strong {
+  color: #fff;
+}
+
+/* IndexedDB Live Indicator Badge */
+.indexeddb-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background-color: var(--primary-muted-bg);
+  color: var(--primary);
+  padding: 2px 8px;
+  border-radius: 12px;
+  border: 1px solid rgba(0, 255, 136, 0.3);
+}
+
+/* Controls Floating Panel (Bottom-Left) */
+.controls-container {
+  position: absolute;
+  bottom: 24px;
+  left: 20px;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  background-color: var(--bg-card);
+  backdrop-filter: var(--bg-card-blur);
+  -webkit-backdrop-filter: var(--bg-card-blur);
+  padding: 16px;
+  border-radius: 16px;
+  border: 1px solid var(--border-subtle);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.6);
+  max-width: 380px;
+  width: calc(100% - 40px);
+}
+
+/* Action Header Toolbar (Undo, Redo, Scramble, Timer Toggle) */
+.action-toolbar-row {
+  display: flex;
+  gap: 6px;
+}
+
+.action-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  padding: 7px 10px;
+  font-size: 12px;
+  font-weight: 600;
+  background-color: var(--btn-bg);
+  color: #fff;
+  border: 1px solid var(--btn-border);
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: 'Montserrat', sans-serif;
+  transition: all 0.15s ease;
+}
+
+.action-btn:hover:not(:disabled) {
+  background-color: rgba(255, 255, 255, 0.12);
+  border-color: rgba(255, 255, 255, 0.25);
+}
+
+.action-btn:disabled {
+  color: var(--text-subtle);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.action-btn-scramble {
+  flex: 1.4;
+  background-color: var(--accent-cyan-bg);
+  color: var(--accent-cyan);
+  border: 1px solid var(--accent-cyan-border);
+  font-weight: 700;
+}
+
+.action-btn-scramble:hover:not(:disabled) {
+  background-color: rgba(56, 189, 248, 0.25);
+  border-color: var(--accent-cyan);
+}
+
+.action-btn-timer {
+  flex: 0 0 36px;
+  padding: 7px 0;
+  color: var(--text-muted);
+}
+
+.action-btn-timer.active {
+  background-color: var(--primary-muted-bg);
+  color: var(--primary);
+  border-color: var(--primary);
+}
+
+.action-btn-timer:hover:not(:disabled) {
+  color: #fff;
+}
+
+/* 3x4 Move Grid */
+.moves-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+}
+
+.move-btn {
+  padding: 9px 12px;
+  font-size: 15px;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  background-color: var(--btn-bg);
+  color: var(--text-main);
+  border: 1px solid var(--btn-border);
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.15s ease;
+}
+
+.move-btn:hover:not(:disabled) {
+  background-color: var(--btn-hover-bg);
+  border-color: var(--btn-hover-border);
+  color: var(--btn-hover-color);
+}
+
+.move-btn:disabled {
+  color: var(--text-subtle);
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+/* Bottom Action Row (Solver & Reset) */
+.bottom-actions-row {
+  display: flex;
+  gap: 8px;
+}
+
+.solver-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  font-family: 'Montserrat', sans-serif;
+  background-color: var(--primary-bg);
+  color: white;
+  border: 1px solid var(--primary);
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  text-transform: uppercase;
+  letter-spacing: 0.03em;
+  box-shadow: 0 4px 14px rgba(0, 155, 72, 0.4);
+  transition: all 0.2s ease;
+}
+
+.solver-btn:hover:not(:disabled) {
+  background-color: var(--primary-hover);
+  transform: translateY(-1px);
+}
+
+.solver-btn:disabled {
+  background-color: #1b4329;
+  color: #86a890;
+  border-color: #235c36;
+  cursor: not-allowed;
+  box-shadow: none;
+  opacity: 0.7;
+}
+
+.clear-btn {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 12px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: 'Montserrat', sans-serif;
+  background-color: var(--danger-bg);
+  color: var(--danger-color);
+  border: 1px solid var(--danger-border);
+  border-radius: 8px;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.clear-btn:hover:not(:disabled) {
+  background-color: var(--danger-hover-bg);
+  border-color: #ef4444;
+}
+
+.clear-btn:disabled {
+  color: var(--text-subtle);
+  cursor: not-allowed;
+  opacity: 0.5;
+}
