@@ -144,12 +144,13 @@ export function Cube3D() {
           currentCubies[idx].rot.normalize();
         });
         
+        // Reset animation flags before triggering state updates
+        animState.current.active = false;
+        setAnimating(false);
+
         // Notify the store that the animation is visually complete
         const completedMove = animState.current.move;
         useCubeStore.getState().commitMove(completedMove);
-        
-        animState.current.active = false;
-        setAnimating(false);
       }
       
       // Force render to show updated refs

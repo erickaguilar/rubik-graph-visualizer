@@ -1,14 +1,23 @@
 import { create } from 'zustand';
 import initWasm, { WasmCubeManager } from './pkg/wasm_core';
+import wasmUrl from './pkg/wasm_core_bg.wasm?url';
 
-let wasmManager: WasmCubeManager | null = null;
+let wasmInstance: WasmCubeManager | null = null;
+let initPromise: Promise<WasmCubeManager> | null = null;
+
+// Thread-safe / Concurrent-safe queue to ensure WebAssembly is called sequentially
+let wasmQueue: Promise<any> = Promise.resolve();
 
 async function getWasmManager(): Promise<WasmCubeManager> {
-  if (!wasmManager) {
-    await initWasm();
-    wasmManager = new WasmCubeManager();
+  if (wasmInstance) return wasmInstance;
+  if (!initPromise) {
+    initPromise = (async () => {
+      await initWasm(wasmUrl);
+      wasmInstance = new WasmCubeManager();
+      return wasmInstance;
+    })();
   }
-  return wasmManager;
+  return initPromise;
 }
 
 interface CubeStore {
@@ -47,39 +56,46 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
     const { fullSequence, onGraphUpdate } = get();
     const newSequence = [...fullSequence, move];
     set({ fullSequence: newSequence });
-    
-    try {
-      const wasm = await getWasmManager();
-      // Apply the sequence in Rust WebAssembly
-      const responseData = wasm.apply_sequence(newSequence.join(' '));
-      
-      // Update the 3D force graph immediately with the new neighborhood
-      if (onGraphUpdate) {
-        onGraphUpdate(responseData);
+
+    // Enqueue the Wasm call sequentially to prevent concurrent borrow errors
+    wasmQueue = wasmQueue.then(async () => {
+      try {
+        const wasm = await getWasmManager();
+        const responseData = wasm.apply_sequence(newSequence.join(' '));
+
+        if (onGraphUpdate) {
+          onGraphUpdate(responseData);
+        }
+      } catch (e) {
+        console.error("Failed to commit move to Wasm graph", e);
       }
-    } catch (e) {
-      console.error("Failed to commit move to Wasm graph", e);
-    }
+    });
+
+    return wasmQueue;
   },
   solveCube: async () => {
     const { fullSequence, addMove } = get();
-    try {
-      const wasm = await getWasmManager();
-      const response = wasm.solve(fullSequence.join(' '));
-      
-      if (response.error && response.moves.length === 0) {
-        alert(response.error);
-        return;
-      }
 
-      // Add each solving move to the animation queue
-      response.moves.forEach((move: string) => {
-        addMove(move);
-      });
-      
-    } catch (e) {
-      console.error("Failed to find solution with Wasm", e);
-      alert("Error finding solution with WebAssembly solver.");
-    }
+    wasmQueue = wasmQueue.then(async () => {
+      try {
+        const wasm = await getWasmManager();
+        const response = wasm.solve(fullSequence.join(' '));
+
+        if (response.error && response.moves.length === 0) {
+          alert(response.error);
+          return;
+        }
+
+        // Add each solving move to the animation queue
+        response.moves.forEach((move: string) => {
+          addMove(move);
+        });
+      } catch (e) {
+        console.error("Failed to find solution with Wasm", e);
+        alert("Error finding solution with WebAssembly solver.");
+      }
+    });
+
+    return wasmQueue;
   }
 }));
