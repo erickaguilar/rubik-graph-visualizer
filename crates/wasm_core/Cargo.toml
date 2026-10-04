@@ -3,6 +3,7 @@ name = "wasm_core"
 version = "0.1.0"
 edition = "2021"
 description = "Rubik's Cube state permutation engine, topology graph and solver in WebAssembly"
+license = "Apache-2.0"
 
 [lib]
 crate-type = ["cdylib", "rlib"]

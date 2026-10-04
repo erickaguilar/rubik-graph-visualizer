@@ -3,6 +3,7 @@
   "version": "2.0.0",
   "private": true,
   "description": "High performance Rubik's cube 3D visualizer and graph solver powered by Rust and WebAssembly",
+  "license": "Apache-2.0",
   "scripts": {
     "dev": "npm run dev --prefix frontend",
     "build": "npm run build --prefix frontend",
