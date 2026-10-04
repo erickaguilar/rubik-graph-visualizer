@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
@@ -47,6 +47,18 @@ function App() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+
+  // Splitter resizer states (default 50% split)
+  const appContainerRef = useRef<HTMLDivElement>(null);
+  const [splitPercent, setSplitPercent] = useState<number>(50);
+  const [isResizing, setIsResizing] = useState<boolean>(false);
+
+  // Graph container measurement to prevent width overflow
+  const graphContainerRef = useRef<HTMLDivElement>(null);
+  const [graphDimensions, setGraphDimensions] = useState<{ width: number; height: number }>({
+    width: 0,
+    height: 0,
+  });
 
   const addMove = useCubeStore(state => state.addMove);
   const undo = useCubeStore(state => state.undo);
@@ -123,6 +135,72 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [keyboardShortcutsEnabled, isSettingsOpen, isBusy, addMove, undo, redo]);
 
+  // Measure graphContainer to prevent ForceGraph3D from overflowing width
+  useEffect(() => {
+    if (!graphContainerRef.current) return;
+    const element = graphContainerRef.current;
+
+    const updateSize = () => {
+      const rect = element.getBoundingClientRect();
+      if (rect.width > 0 && rect.height > 0) {
+        setGraphDimensions({
+          width: Math.floor(rect.width),
+          height: Math.floor(rect.height),
+        });
+      }
+    };
+
+    updateSize();
+
+    const ro = new ResizeObserver((entries) => {
+      for (const entry of entries) {
+        const { width, height } = entry.contentRect;
+        if (width > 0 && height > 0) {
+          setGraphDimensions({
+            width: Math.floor(width),
+            height: Math.floor(height),
+          });
+        }
+      }
+    });
+
+    ro.observe(element);
+    return () => ro.disconnect();
+  }, []);
+
+  const handlePointerDown = (e: React.PointerEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsResizing(true);
+    (e.target as HTMLElement).setPointerCapture(e.pointerId);
+  };
+
+  const handlePointerMove = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (!isResizing || !appContainerRef.current) return;
+    const rect = appContainerRef.current.getBoundingClientRect();
+    if (rect.width <= 0) return;
+    const clientX = e.clientX;
+    const newPercent = ((clientX - rect.left) / rect.width) * 100;
+    // Constrain split between 20% and 80%
+    const clamped = Math.min(80, Math.max(20, newPercent));
+    setSplitPercent(clamped);
+  };
+
+  const handlePointerUp = (e: React.PointerEvent<HTMLDivElement>) => {
+    if (isResizing) {
+      setIsResizing(false);
+      try {
+        (e.target as HTMLElement).releasePointerCapture(e.pointerId);
+      } catch {
+        // pointer capture released
+      }
+    }
+  };
+
+  const handleDoubleClick = () => {
+    // Reset to initial 50% split on double click
+    setSplitPercent(50);
+  };
+
   const handleScrambleClick = () => {
     const scramble = generateWcaScramble(20);
     applyScramble(scramble);
@@ -132,7 +210,11 @@ function App() {
   if (error) return <div className="error">Error: {error}</div>;
 
   return (
-    <div className="app-container">
+    <div
+      ref={appContainerRef}
+      className={`app-container ${isResizing ? 'is-resizing' : ''}`}
+      style={{ '--cube-panel-width': `${splitPercent}%` } as React.CSSProperties}
+    >
       
       {/* Floating Top-Right Settings Button */}
       <button
@@ -255,8 +337,21 @@ function App() {
         </Canvas>
       </div>
 
+      {/* Resizer Splitter Divider */}
+      <div
+        className={`panel-resizer ${isResizing ? 'is-active' : ''}`}
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        onPointerUp={handlePointerUp}
+        onPointerCancel={handlePointerUp}
+        onDoubleClick={handleDoubleClick}
+        title="Arrastra para redimensionar (Doble clic para centrar al 50%)"
+      >
+        <div className="panel-resizer-handle" />
+      </div>
+
       {/* Topology Graph View (Right Panel) */}
-      <div className="graph-panel">
+      <div className="graph-panel" ref={graphContainerRef}>
         <div className="panel-header-badge">
           <div className="panel-header-title">
             <GraphIcon size={20} color="#60a5fa" />
@@ -275,6 +370,8 @@ function App() {
           </div>
         </div>
         <ForceGraph3D
+          width={graphDimensions.width > 0 ? graphDimensions.width : undefined}
+          height={graphDimensions.height > 0 ? graphDimensions.height : undefined}
           graphData={graphData}
           nodeLabel="id"
           nodeColor="color"
