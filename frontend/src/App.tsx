@@ -33,8 +33,10 @@ function App() {
   const [error, setError] = useState<string | null>(null);
   const addMove = useCubeStore(state => state.addMove);
   const solveCube = useCubeStore(state => state.solveCube);
+  const resetGraph = useCubeStore(state => state.resetGraph);
   const setOnGraphUpdate = useCubeStore(state => state.setOnGraphUpdate);
   const loadInitialGraph = useCubeStore(state => state.loadInitialGraph);
+  const isSavedInDB = useCubeStore(state => state.isSavedInDB);
 
   useEffect(() => {
     // Tell the store how to update our local graph data
@@ -91,19 +93,40 @@ function App() {
             ))}
           </div>
           
-          <button 
-            onClick={() => solveCube()}
-            style={{
-              padding: '12px', fontSize: '16px', fontWeight: 'bold',
-              backgroundColor: '#009B48', color: 'white', border: '1px solid #00ff00',
-              borderRadius: '5px', cursor: 'pointer', outline: 'none',
-              textTransform: 'uppercase'
-            }}
-            onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#00ff00'}
-            onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#009B48'}
-          >
-            🧠 Resolver con IA (A*)
-          </button>
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button 
+              onClick={() => solveCube()}
+              style={{
+                flex: 1,
+                padding: '12px', fontSize: '15px', fontWeight: 'bold',
+                backgroundColor: '#009B48', color: 'white', border: '1px solid #00ff00',
+                borderRadius: '5px', cursor: 'pointer', outline: 'none',
+                textTransform: 'uppercase'
+              }}
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#00ff00'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#009B48'}
+            >
+              🧠 Resolver con IA (A*)
+            </button>
+            
+            <button 
+              onClick={() => {
+                if (window.confirm('¿Deseas reiniciar el grafo y borrar la memoria local?')) {
+                  resetGraph();
+                }
+              }}
+              style={{
+                padding: '12px 14px', fontSize: '14px', fontWeight: 'bold',
+                backgroundColor: '#3a1a1a', color: '#ffaaaa', border: '1px solid #aa3333',
+                borderRadius: '5px', cursor: 'pointer', outline: 'none'
+              }}
+              title="Borra la memoria de IndexedDB y reinicia el grafo"
+              onMouseOver={(e) => e.currentTarget.style.backgroundColor = '#5a2222'}
+              onMouseOut={(e) => e.currentTarget.style.backgroundColor = '#3a1a1a'}
+            >
+              🗑️ Limpiar
+            </button>
+          </div>
         </div>
 
         <Canvas camera={{ position: [5, 5, 5], fov: 45 }}>
@@ -119,7 +142,16 @@ function App() {
       <div style={{ flex: 1, position: 'relative' }}>
         <div style={{ position: 'absolute', top: 20, left: 20, zIndex: 10, color: 'white', fontFamily: 'sans-serif' }}>
           <h2>Topología del Grafo</h2>
-          <p>Nodos: {graphData.nodes.length} | Aristas: {graphData.links.length}</p>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginTop: '4px' }}>
+            <span style={{ fontSize: '0.95em', color: '#ccc' }}>
+              Nodos: {graphData.nodes.length} | Aristas: {graphData.links.length}
+            </span>
+            {isSavedInDB && (
+              <span style={{ fontSize: '0.8em', backgroundColor: '#0d2d1d', color: '#00ff88', padding: '2px 8px', borderRadius: '12px', border: '1px solid #00aa55' }}>
+                💾 IndexedDB Activo
+              </span>
+            )}
+          </div>
         </div>
         <ForceGraph3D
           graphData={graphData}

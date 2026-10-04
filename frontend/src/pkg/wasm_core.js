@@ -27,6 +27,39 @@ export class WasmCubeManager {
         return takeFromExternrefTable0(ret[0]);
     }
     /**
+     * Clears all stored nodes and edges, resetting to the initial identity state.
+     * @returns {any}
+     */
+    clear_graph() {
+        const ret = wasm.wasmcubemanager_clear_graph(this.__wbg_ptr);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
+    }
+    /**
+     * Exports the graph topology and all known states to a JSON string for IndexedDB storage.
+     * @returns {string}
+     */
+    export_graph() {
+        let deferred2_0;
+        let deferred2_1;
+        try {
+            const ret = wasm.wasmcubemanager_export_graph(this.__wbg_ptr);
+            var ptr1 = ret[0];
+            var len1 = ret[1];
+            if (ret[3]) {
+                ptr1 = 0; len1 = 0;
+                throw takeFromExternrefTable0(ret[2]);
+            }
+            deferred2_0 = ptr1;
+            deferred2_1 = len1;
+            return getStringFromWasm0(ptr1, len1);
+        } finally {
+            wasm.__wbindgen_free(deferred2_0, deferred2_1, 1);
+        }
+    }
+    /**
      * Returns the graph neighborhood around `center_hash` up to `depth`.
      * If `center_hash` is None/empty, returns the full graph or neighborhood of solved state.
      * @param {string | null} [center_hash]
@@ -57,6 +90,20 @@ export class WasmCubeManager {
         } finally {
             wasm.__wbindgen_free(deferred1_0, deferred1_1, 1);
         }
+    }
+    /**
+     * Restores graph topology from a stored JSON string (from IndexedDB).
+     * @param {string} json_str
+     * @returns {any}
+     */
+    import_graph(json_str) {
+        const ptr0 = passStringToWasm0(json_str, wasm.__wbindgen_malloc, wasm.__wbindgen_realloc);
+        const len0 = WASM_VECTOR_LEN;
+        const ret = wasm.wasmcubemanager_import_graph(this.__wbg_ptr, ptr0, len0);
+        if (ret[2]) {
+            throw takeFromExternrefTable0(ret[1]);
+        }
+        return takeFromExternrefTable0(ret[0]);
     }
     constructor() {
         const ret = wasm.wasmcubemanager_new();

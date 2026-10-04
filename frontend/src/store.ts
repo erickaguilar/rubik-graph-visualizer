@@ -1,6 +1,11 @@
 import { create } from 'zustand';
 import initWasm, { WasmCubeManager } from './pkg/wasm_core';
 import wasmUrl from './pkg/wasm_core_bg.wasm?url';
+import {
+  saveGraphToIndexedDB,
+  loadGraphFromIndexedDB,
+  clearGraphFromIndexedDB,
+} from './utils/indexedDb';
 
 let wasmInstance: WasmCubeManager | null = null;
 let initPromise: Promise<WasmCubeManager> | null = null;
@@ -24,6 +29,7 @@ interface CubeStore {
   moveQueue: string[];
   fullSequence: string[];
   isAnimating: boolean;
+  isSavedInDB: boolean;
   onGraphUpdate?: (data: any) => void;
   setOnGraphUpdate: (callback: (data: any) => void) => void;
   addMove: (move: string) => void;
@@ -31,6 +37,7 @@ interface CubeStore {
   popMove: () => string | undefined;
   commitMove: (move: string) => Promise<void>;
   solveCube: () => Promise<void>;
+  resetGraph: () => Promise<void>;
   loadInitialGraph: () => Promise<any>;
 }
 
@@ -38,6 +45,7 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
   moveQueue: [],
   fullSequence: [],
   isAnimating: false,
+  isSavedInDB: false,
   setOnGraphUpdate: (callback) => set({ onGraphUpdate: callback }),
   addMove: (move) => set((state) => ({ moveQueue: [...state.moveQueue, move] })),
   setAnimating: (isAnimating) => set({ isAnimating }),
@@ -50,6 +58,20 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
   },
   loadInitialGraph: async () => {
     const wasm = await getWasmManager();
+
+    // Check if previous graph data was saved in IndexedDB
+    const savedData = await loadGraphFromIndexedDB();
+    if (savedData && savedData.graphJson) {
+      try {
+        const restoredGraph = wasm.import_graph(savedData.graphJson);
+        set({ fullSequence: savedData.fullSequence || [], isSavedInDB: true });
+        return restoredGraph;
+      } catch (err) {
+        console.warn('Failed to restore graph from IndexedDB, starting fresh:', err);
+      }
+    }
+
+    set({ isSavedInDB: false });
     return wasm.get_graph(null, 2);
   },
   commitMove: async (move) => {
@@ -63,11 +85,20 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
         const wasm = await getWasmManager();
         const responseData = wasm.apply_sequence(newSequence.join(' '));
 
+        // Export and persist graph to IndexedDB
+        try {
+          const serializedJson = wasm.export_graph();
+          await saveGraphToIndexedDB(serializedJson, newSequence);
+          set({ isSavedInDB: true });
+        } catch (dbErr) {
+          console.warn('Could not persist to IndexedDB:', dbErr);
+        }
+
         if (onGraphUpdate) {
           onGraphUpdate(responseData);
         }
       } catch (e) {
-        console.error("Failed to commit move to Wasm graph", e);
+        console.error('Failed to commit move to Wasm graph', e);
       }
     });
 
@@ -91,11 +122,31 @@ export const useCubeStore = create<CubeStore>((set, get) => ({
           addMove(move);
         });
       } catch (e) {
-        console.error("Failed to find solution with Wasm", e);
-        alert("Error finding solution with WebAssembly solver.");
+        console.error('Failed to find solution with Wasm', e);
+        alert('Error finding solution with WebAssembly solver.');
       }
     });
 
     return wasmQueue;
-  }
+  },
+  resetGraph: async () => {
+    wasmQueue = wasmQueue.then(async () => {
+      try {
+        const wasm = await getWasmManager();
+        await clearGraphFromIndexedDB();
+        const initialView = wasm.clear_graph();
+
+        set({ fullSequence: [], moveQueue: [], isSavedInDB: false });
+
+        const { onGraphUpdate } = get();
+        if (onGraphUpdate) {
+          onGraphUpdate(initialView);
+        }
+      } catch (e) {
+        console.error('Failed to reset graph:', e);
+      }
+    });
+
+    return wasmQueue;
+  },
 }));

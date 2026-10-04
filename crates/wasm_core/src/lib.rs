@@ -29,6 +29,26 @@ impl WasmCubeManager {
         self.graph = TopologyGraph::new();
     }
 
+    /// Exports the graph topology and all known states to a JSON string for IndexedDB storage.
+    pub fn export_graph(&self) -> Result<String, JsValue> {
+        self.graph.export_data().map_err(|e| JsValue::from_str(&e))
+    }
+
+    /// Restores graph topology from a stored JSON string (from IndexedDB).
+    pub fn import_graph(&mut self, json_str: &str) -> Result<JsValue, JsValue> {
+        let view = self
+            .graph
+            .import_data(json_str)
+            .map_err(|e| JsValue::from_str(&e))?;
+        serde_wasm_bindgen::to_value(&view).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
+    /// Clears all stored nodes and edges, resetting to the initial identity state.
+    pub fn clear_graph(&mut self) -> Result<JsValue, JsValue> {
+        let view = self.graph.clear();
+        serde_wasm_bindgen::to_value(&view).map_err(|e| JsValue::from_str(&e.to_string()))
+    }
+
     /// Returns the hash string of the solved state
     pub fn get_solved_hash(&self) -> String {
         CubeState::new().get_hash()

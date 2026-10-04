@@ -1,4 +1,5 @@
 use std::collections::{HashMap, HashSet, VecDeque};
+use serde::{Deserialize, Serialize};
 use crate::cube::{CubeState, MOVES};
 use crate::types::{GraphData, LinkData, NodeData};
 
@@ -278,6 +279,76 @@ impl TopologyGraph {
         path_moves.reverse();
         Ok(path_moves)
     }
+
+    /// Exports the graph topology and nodes into a compact JSON string.
+    pub fn export_data(&self) -> Result<String, String> {
+        let serialized = SerializedGraph {
+            nodes: self.nodes.values().cloned().collect(),
+            edges: self
+                .edges
+                .iter()
+                .map(|e| SerializedEdge {
+                    source: e.source.clone(),
+                    target: e.target.clone(),
+                    move_name: e.move_name.clone(),
+                })
+                .collect(),
+            solved_hash: self.solved_hash.clone(),
+        };
+        serde_json::to_string(&serialized).map_err(|e| e.to_string())
+    }
+
+    /// Restores the graph topology from a serialized JSON string.
+    pub fn import_data(&mut self, json_str: &str) -> Result<GraphData, String> {
+        let serialized: SerializedGraph =
+            serde_json::from_str(json_str).map_err(|e| e.to_string())?;
+
+        self.nodes.clear();
+        self.edges.clear();
+        self.adj.clear();
+        self.solved_hash = serialized.solved_hash;
+
+        for node in serialized.nodes {
+            self.nodes.insert(node.id.clone(), node);
+        }
+
+        for edge in serialized.edges {
+            self.add_transition(&edge.source, &edge.target, &edge.move_name);
+        }
+
+        // Ensure the solved identity state is present and anchored
+        if self.nodes.is_empty() || !self.nodes.contains_key(&self.solved_hash) {
+            let solved = CubeState::new();
+            self.solved_hash = self.add_state(&solved);
+        }
+
+        Ok(self.get_neighborhood(None, 2))
+    }
+
+    /// Resets the graph back to initial identity state and returns the fresh view.
+    pub fn clear(&mut self) -> GraphData {
+        self.nodes.clear();
+        self.edges.clear();
+        self.adj.clear();
+
+        let solved = CubeState::new();
+        self.solved_hash = self.add_state(&solved);
+        self.get_neighborhood(None, 2)
+    }
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SerializedGraph {
+    pub nodes: Vec<NodeData>,
+    pub edges: Vec<SerializedEdge>,
+    pub solved_hash: String,
+}
+
+#[derive(Serialize, Deserialize, Clone, Debug)]
+pub struct SerializedEdge {
+    pub source: String,
+    pub target: String,
+    pub move_name: String,
 }
 
 #[cfg(test)]
@@ -339,4 +410,24 @@ mod tests {
         // Check that all 5 moves created edges
         assert!(view.links.len() >= 5);
     }
+
+    #[test]
+    fn test_export_and_import() {
+        let mut graph = TopologyGraph::new();
+        graph.apply_sequence("U R F").unwrap();
+
+        let json = graph.export_data().unwrap();
+        assert!(!json.is_empty());
+
+        let mut restored = TopologyGraph::new();
+        let view = restored.import_data(&json).unwrap();
+        assert_eq!(view.nodes.len(), graph.nodes.len());
+        assert_eq!(view.links.len(), graph.edges.len());
+
+        // Test clear
+        let cleared_view = restored.clear();
+        assert_eq!(cleared_view.nodes.len(), 1);
+        assert_eq!(cleared_view.links.len(), 0);
+    }
 }
+

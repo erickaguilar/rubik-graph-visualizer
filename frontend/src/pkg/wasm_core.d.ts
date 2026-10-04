@@ -10,6 +10,14 @@ export class WasmCubeManager {
      */
     apply_sequence(sequence: string): any;
     /**
+     * Clears all stored nodes and edges, resetting to the initial identity state.
+     */
+    clear_graph(): any;
+    /**
+     * Exports the graph topology and all known states to a JSON string for IndexedDB storage.
+     */
+    export_graph(): string;
+    /**
      * Returns the graph neighborhood around `center_hash` up to `depth`.
      * If `center_hash` is None/empty, returns the full graph or neighborhood of solved state.
      */
@@ -18,6 +26,10 @@ export class WasmCubeManager {
      * Returns the hash string of the solved state
      */
     get_solved_hash(): string;
+    /**
+     * Restores graph topology from a stored JSON string (from IndexedDB).
+     */
+    import_graph(json_str: string): any;
     constructor();
     /**
      * Resets the graph back to initial identity state
@@ -36,8 +48,11 @@ export interface InitOutput {
     readonly memory: WebAssembly.Memory;
     readonly __wbg_wasmcubemanager_free: (a: number, b: number) => void;
     readonly wasmcubemanager_apply_sequence: (a: number, b: number, c: number) => [number, number, number];
+    readonly wasmcubemanager_clear_graph: (a: number) => [number, number, number];
+    readonly wasmcubemanager_export_graph: (a: number) => [number, number, number, number];
     readonly wasmcubemanager_get_graph: (a: number, b: number, c: number, d: number) => [number, number, number];
     readonly wasmcubemanager_get_solved_hash: (a: number) => [number, number];
+    readonly wasmcubemanager_import_graph: (a: number, b: number, c: number) => [number, number, number];
     readonly wasmcubemanager_new: () => number;
     readonly wasmcubemanager_reset: (a: number) => void;
     readonly wasmcubemanager_solve: (a: number, b: number, c: number) => [number, number, number];
