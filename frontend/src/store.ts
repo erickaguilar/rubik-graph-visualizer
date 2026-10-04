@@ -192,18 +192,18 @@ export const useCubeStore = create<CubeStore>((set, get) => {
       wasmQueue = wasmQueue.then(async () => {
         try {
           const wasm = await getWasmManager();
-          const cleanView = wasm.clear_graph();
-          await clearGraphFromIndexedDB();
+          // Update view to highlight the solved center while preserving all existing nodes & edges
+          const currentView = wasm.get_graph(null, 3);
 
           const { onGraphUpdate } = get();
           if (onGraphUpdate) {
-            onGraphUpdate(cleanView);
+            onGraphUpdate(currentView);
           }
         } catch (e) {
-          console.error('Failed to reset graph for scramble:', e);
+          console.error('Failed to update graph for scramble:', e);
         }
 
-        // Reset the 3D model and enqueue the scramble from clean solved identity
+        // Reset the physical 3D model to identity and enqueue the scramble moves
         set((state) => ({
           cubeResetTrigger: state.cubeResetTrigger + 1,
           fullSequence: [],
@@ -211,7 +211,6 @@ export const useCubeStore = create<CubeStore>((set, get) => {
           moveMetaQueue: moves.map(() => 'normal' as const),
           redoStack: [],
           currentScramble: scrambleStr,
-          isSavedInDB: false,
           isSolving: false,
           timerStatus: 'idle',
           inspectionTimeLeft: 15,
