@@ -213,14 +213,14 @@ impl TopologyGraph {
         self.get_view(center, &path, depth)
     }
 
-    /// Finds the shortest path of moves from `start_hash` to `target_hash` in the known graph.
+    /// Finds the shortest path of moves and node state hashes from `start_hash` to `target_hash` in the known graph.
     pub fn find_shortest_path(
         &self,
         start_hash: &str,
         target_hash: &str,
-    ) -> Result<Vec<String>, String> {
+    ) -> Result<(Vec<String>, Vec<String>), String> {
         if start_hash == target_hash {
-            return Ok(Vec::new());
+            return Ok((Vec::new(), vec![start_hash.to_string()]));
         }
 
         if !self.nodes.contains_key(start_hash) {
@@ -268,16 +268,19 @@ impl TopologyGraph {
 
         // Reconstruct path
         let mut path_moves = Vec::new();
+        let mut path_nodes = vec![target_hash.to_string()];
         let mut curr = target_hash.to_string();
 
         while curr != start_hash {
             let (parent, move_name) = parent_map.get(&curr).unwrap();
             path_moves.push(move_name.clone());
             curr = parent.clone();
+            path_nodes.push(curr.clone());
         }
 
         path_moves.reverse();
-        Ok(path_moves)
+        path_nodes.reverse();
+        Ok((path_moves, path_nodes))
     }
 
     /// Exports the graph topology and nodes into a compact JSON string.
@@ -377,8 +380,11 @@ mod tests {
         assert_ne!(current_hash, target_hash);
 
         // Find shortest path to solved
-        let solution_moves = graph.find_shortest_path(&current_hash, &target_hash).unwrap();
+        let (solution_moves, solution_nodes) = graph.find_shortest_path(&current_hash, &target_hash).unwrap();
         assert!(!solution_moves.is_empty());
+        assert_eq!(solution_nodes.len(), solution_moves.len() + 1);
+        assert_eq!(solution_nodes.first().unwrap(), &current_hash);
+        assert_eq!(solution_nodes.last().unwrap(), &target_hash);
 
         // Verify that applying solution_moves to the scrambled cube recovers the solved state
         let scrambled = solved.apply_sequence("R U R' U'").unwrap();
@@ -397,7 +403,8 @@ mod tests {
         let (current_hash, _) = graph.apply_sequence(sequence).unwrap();
         assert_ne!(current_hash, target_hash);
 
-        let solution_moves = graph.find_shortest_path(&current_hash, &target_hash).unwrap();
+        let (solution_moves, solution_nodes) = graph.find_shortest_path(&current_hash, &target_hash).unwrap();
+        assert_eq!(solution_nodes.len(), solution_moves.len() + 1);
         println!("Solution moves: {:?}", solution_moves);
         let scrambled = solved.apply_sequence(sequence).unwrap();
         let solution_str = solution_moves.join(" ");

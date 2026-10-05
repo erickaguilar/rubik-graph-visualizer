@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo, useCallback } from 'react';
 import ForceGraph3D from 'react-force-graph-3d';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, Environment } from '@react-three/drei';
@@ -106,8 +106,185 @@ function App() {
   const moveQueue = useCubeStore(state => state.moveQueue);
   const isChallengeMode = useCubeStore(state => state.isChallengeMode);
   const setChallengeMode = useCubeStore(state => state.setChallengeMode);
+  const solutionPathNodes = useCubeStore(state => state.solutionPathNodes);
+  const activeSolutionIndex = useCubeStore(state => state.activeSolutionIndex);
+  const clearSolutionPath = useCubeStore(state => state.clearSolutionPath);
 
   const isBusy = isAnimating || moveQueue.length > 0 || isSolving;
+
+  // Helper to extract node ID whether it's a string or an object { id, ... }
+  const getNodeId = (nodeOrId: any): string => {
+    if (!nodeOrId) return '';
+    return typeof nodeOrId === 'object' && nodeOrId !== null ? String(nodeOrId.id) : String(nodeOrId);
+  };
+
+  const isSolutionPathActive = solutionPathNodes.length > 0;
+
+  // Precompute solution path edge lookups for fast accessor evaluation
+  const { solutionEdgesForward, solutionEdgesReverse } = useMemo(() => {
+    const forward = new Set<string>();
+    const reverse = new Set<string>();
+
+    if (solutionPathNodes.length >= 2) {
+      for (let i = 0; i < solutionPathNodes.length - 1; i++) {
+        const u = solutionPathNodes[i];
+        const v = solutionPathNodes[i + 1];
+        forward.add(`${u}->${v}`);
+        reverse.add(`${v}->${u}`);
+      }
+    }
+
+    return { solutionEdgesForward: forward, solutionEdgesReverse: reverse };
+  }, [solutionPathNodes]);
+
+  // Dynamic Node Color: Golden & Neon highlight for the solution path, dimmed for background
+  const getNodeColor = useCallback((node: any) => {
+    const id = getNodeId(node);
+    if (!isSolutionPathActive) {
+      return node.is_solved ? '#00ff88' : (node.color || '#60a5fa');
+    }
+
+    const pathIdx = solutionPathNodes.indexOf(id);
+    if (pathIdx === -1) {
+      // Subtly dimmed background node to preserve contextual topology
+      return node.is_solved ? '#00cc66' : '#1e2438';
+    }
+
+    if (pathIdx === activeSolutionIndex) {
+      // Current active state: High-intensity Electric Yellow / Neon
+      return '#FFE600';
+    }
+    if (pathIdx < activeSolutionIndex) {
+      // Traversed step along the solution: Glowing Neon Emerald
+      return '#00ffaa';
+    }
+    // Pending step on the solution: Brilliant Radiant Gold
+    return '#FFD700';
+  }, [isSolutionPathActive, solutionPathNodes, activeSolutionIndex]);
+
+  // Dynamic Node Size: Large for active and solution nodes, small for background
+  const getNodeVal = useCallback((node: any) => {
+    const id = getNodeId(node);
+    if (!isSolutionPathActive) {
+      return node.is_solved ? 10 : (node.val || 4);
+    }
+
+    const pathIdx = solutionPathNodes.indexOf(id);
+    if (pathIdx === -1) {
+      return node.is_solved ? 7 : 2.5;
+    }
+
+    if (pathIdx === activeSolutionIndex) {
+      return 15;
+    }
+    return 8;
+  }, [isSolutionPathActive, solutionPathNodes, activeSolutionIndex]);
+
+  // Dynamic Link Color: Glowing gold/neon for solution edges, dimmed for others
+  const getLinkColor = useCallback((link: any) => {
+    const src = getNodeId(link.source);
+    const tgt = getNodeId(link.target);
+    const key = `${src}->${tgt}`;
+
+    if (!isSolutionPathActive) {
+      return link.color || '#999999';
+    }
+
+    const isFwd = solutionEdgesForward.has(key);
+    const isRev = solutionEdgesReverse.has(key);
+
+    if (isFwd || isRev) {
+      let stepIdx = -1;
+      for (let i = 0; i < solutionPathNodes.length - 1; i++) {
+        if (
+          (solutionPathNodes[i] === src && solutionPathNodes[i + 1] === tgt) ||
+          (solutionPathNodes[i] === tgt && solutionPathNodes[i + 1] === src)
+        ) {
+          stepIdx = i;
+          break;
+        }
+      }
+
+      if (stepIdx === activeSolutionIndex) {
+        return '#FFE600';
+      }
+      if (stepIdx < activeSolutionIndex) {
+        return '#00ffaa';
+      }
+      return '#FFD700';
+    }
+
+    return 'rgba(70, 85, 110, 0.18)';
+  }, [isSolutionPathActive, solutionEdgesForward, solutionEdgesReverse, solutionPathNodes, activeSolutionIndex]);
+
+  // Dynamic Link Width: Thick luminous beam for solution, thin wire for others
+  const getLinkWidth = useCallback((link: any) => {
+    if (!isSolutionPathActive) {
+      return 1.2;
+    }
+    const src = getNodeId(link.source);
+    const tgt = getNodeId(link.target);
+    const key = `${src}->${tgt}`;
+    if (solutionEdgesForward.has(key) || solutionEdgesReverse.has(key)) {
+      return 4;
+    }
+    return 0.5;
+  }, [isSolutionPathActive, solutionEdgesForward, solutionEdgesReverse]);
+
+  // Directional particles flowing toward the solved identity state along the solution path
+  const getLinkParticles = useCallback((link: any) => {
+    if (!isSolutionPathActive) return 0;
+    const src = getNodeId(link.source);
+    const tgt = getNodeId(link.target);
+    const key = `${src}->${tgt}`;
+    if (solutionEdgesForward.has(key) || solutionEdgesReverse.has(key)) {
+      return 4;
+    }
+    return 0;
+  }, [isSolutionPathActive, solutionEdgesForward, solutionEdgesReverse]);
+
+  const getLinkParticleSpeed = useCallback((link: any) => {
+    if (!isSolutionPathActive) return 0;
+    const src = getNodeId(link.source);
+    const tgt = getNodeId(link.target);
+    const key = `${src}->${tgt}`;
+    if (solutionEdgesForward.has(key)) {
+      return 0.012;
+    }
+    if (solutionEdgesReverse.has(key)) {
+      return -0.012;
+    }
+    return 0;
+  }, [isSolutionPathActive, solutionEdgesForward, solutionEdgesReverse]);
+
+  const getLinkParticleWidth = useCallback((link: any) => {
+    if (!isSolutionPathActive) return 0;
+    const src = getNodeId(link.source);
+    const tgt = getNodeId(link.target);
+    const key = `${src}->${tgt}`;
+    if (solutionEdgesForward.has(key) || solutionEdgesReverse.has(key)) {
+      return 3.2;
+    }
+    return 0;
+  }, [isSolutionPathActive, solutionEdgesForward, solutionEdgesReverse]);
+
+  const getLinkParticleColor = useCallback(() => {
+    return '#FFD700';
+  }, []);
+
+  // Instantly re-evaluate ForceGraph3D accessors when solution step advances
+  useEffect(() => {
+    if (fgRef.current) {
+      fgRef.current.refresh();
+    }
+  }, [solutionPathNodes, activeSolutionIndex]);
+
+  // Frame the solution path nicely in the camera when a solution is calculated
+  useEffect(() => {
+    if (solutionPathNodes.length > 0 && fgRef.current) {
+      centerGraph(700);
+    }
+  }, [solutionPathNodes.length > 0]);
 
   useEffect(() => {
     setOnGraphUpdate(setGraphData);
@@ -349,7 +526,9 @@ function App() {
               className="solver-btn"
             >
               <BoltIcon size={18} />
-              {isSolving ? '⏳ Resolviendo...' : 'Resolver Cubo (A*)'}
+              {isSolving
+                ? `⏳ Resolviendo (${activeSolutionIndex + 1}/${solutionPathNodes.length || '?'})...`
+                : 'Resolver Cubo (A*)'}
             </button>
             
             <button 
@@ -408,6 +587,25 @@ function App() {
                 IndexedDB
               </span>
             )}
+            {isSolutionPathActive && (
+              <span className="solution-path-badge">
+                <BoltIcon size={12} color="#FFD700" />
+                <span>
+                  {isSolving
+                    ? `Paso ${activeSolutionIndex + 1}/${solutionPathNodes.length}`
+                    : `Ruta A*: ${solutionPathNodes.length - 1} giros`}
+                </span>
+                {!isSolving && (
+                  <button
+                    className="solution-badge-close"
+                    onClick={clearSolutionPath}
+                    title="Descartar resaltado de solución"
+                  >
+                    ✕
+                  </button>
+                )}
+              </span>
+            )}
             <button
               className="center-graph-btn"
               onClick={() => centerGraph(600)}
@@ -424,10 +622,14 @@ function App() {
           height={graphDimensions.height}
           graphData={graphData}
           nodeLabel="id"
-          nodeColor="color"
-          nodeVal="val"
-          linkColor="color"
-          linkWidth={1}
+          nodeColor={getNodeColor}
+          nodeVal={getNodeVal}
+          linkColor={getLinkColor}
+          linkWidth={getLinkWidth}
+          linkDirectionalParticles={getLinkParticles}
+          linkDirectionalParticleWidth={getLinkParticleWidth}
+          linkDirectionalParticleSpeed={getLinkParticleSpeed}
+          linkDirectionalParticleColor={getLinkParticleColor}
           linkDirectionalArrowLength={3.5}
           linkDirectionalArrowRelPos={1}
           linkLabel={showLinkLabels ? "move" : undefined}

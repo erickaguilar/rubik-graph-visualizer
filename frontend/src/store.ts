@@ -78,6 +78,11 @@ interface CubeStore {
   tps: number;
   solveHistory: SolveRecord[];
 
+  // Solution Path Visualization
+  solutionPathNodes: string[];
+  activeSolutionIndex: number;
+  clearSolutionPath: () => void;
+
   // Graph listener
   onGraphUpdate?: (data: any) => void;
   setOnGraphUpdate: (callback: (data: any) => void) => void;
@@ -144,6 +149,11 @@ export const useCubeStore = create<CubeStore>((set, get) => {
     tps: 0,
     solveHistory: initialSolves,
 
+    // Solution Path Visualization
+    solutionPathNodes: [],
+    activeSolutionIndex: 0,
+    clearSolutionPath: () => set({ solutionPathNodes: [], activeSolutionIndex: 0 }),
+
     setOnGraphUpdate: (callback) => set({ onGraphUpdate: callback }),
     setAnimating: (isAnimating) => set({ isAnimating }),
     setAnimationSpeed: (animationSpeed) => set({ animationSpeed }),
@@ -163,6 +173,7 @@ export const useCubeStore = create<CubeStore>((set, get) => {
       set((state) => ({
         moveQueue: [...state.moveQueue, move],
         moveMetaQueue: [...state.moveMetaQueue, 'normal'],
+        ...(state.isSolving ? {} : { solutionPathNodes: [], activeSolutionIndex: 0 }),
       })),
 
     undo: () => {
@@ -173,6 +184,8 @@ export const useCubeStore = create<CubeStore>((set, get) => {
       set((state) => ({
         moveQueue: [...state.moveQueue, invMove],
         moveMetaQueue: [...state.moveMetaQueue, 'undo'],
+        solutionPathNodes: [],
+        activeSolutionIndex: 0,
       }));
     },
 
@@ -183,6 +196,8 @@ export const useCubeStore = create<CubeStore>((set, get) => {
       set((state) => ({
         moveQueue: [...state.moveQueue, nextMove],
         moveMetaQueue: [...state.moveMetaQueue, 'redo'],
+        solutionPathNodes: [],
+        activeSolutionIndex: 0,
       }));
     },
 
@@ -212,6 +227,8 @@ export const useCubeStore = create<CubeStore>((set, get) => {
           redoStack: [],
           currentScramble: scrambleStr,
           isSolving: false,
+          solutionPathNodes: [],
+          activeSolutionIndex: 0,
           timerStatus: 'idle',
           inspectionTimeLeft: 15,
           moveCount: 0,
@@ -309,6 +326,9 @@ export const useCubeStore = create<CubeStore>((set, get) => {
         currentScramble,
         solveHistory,
         moveQueue,
+        isSolving,
+        activeSolutionIndex,
+        solutionPathNodes,
       } = get();
 
       let newSequence: string[] = [];
@@ -326,6 +346,12 @@ export const useCubeStore = create<CubeStore>((set, get) => {
         // Normal move
         newSequence = [...fullSequence, completedMove];
         newRedo = []; // clear redo history on new manual move
+      }
+
+      // Track step-by-step progress along the solution path
+      let nextSolutionIndex = activeSolutionIndex;
+      if (isSolving && solutionPathNodes.length > 0) {
+        nextSolutionIndex = Math.min(solutionPathNodes.length - 1, activeSolutionIndex + 1);
       }
 
       // Handle Challenge Mode timer transitions
@@ -348,6 +374,7 @@ export const useCubeStore = create<CubeStore>((set, get) => {
         timerStatus: updatedTimerStatus,
         solveStartTime: updatedStartTime,
         moveCount: updatedMoveCount,
+        activeSolutionIndex: isSolving ? nextSolutionIndex : activeSolutionIndex,
       });
 
       // Enqueue the Wasm call sequentially to prevent concurrent borrow errors
@@ -405,7 +432,12 @@ export const useCubeStore = create<CubeStore>((set, get) => {
 
               // If animation queue has finished all moves, clean fullSequence back to solved
               if (moveQueue.length === 0) {
-                set({ fullSequence: [], redoStack: [], isSolving: false });
+                set({
+                  fullSequence: [],
+                  redoStack: [],
+                  isSolving: false,
+                  activeSolutionIndex: solutionPathNodes.length > 0 ? solutionPathNodes.length - 1 : 0,
+                });
               }
             }
           }
@@ -423,25 +455,31 @@ export const useCubeStore = create<CubeStore>((set, get) => {
         return;
       }
 
-      set({ isSolving: true });
+      set({ isSolving: true, solutionPathNodes: [], activeSolutionIndex: 0 });
 
       wasmQueue = wasmQueue.then(async () => {
         try {
           const wasm = await getWasmManager();
           const response = wasm.solve(fullSequence.join(' '));
 
-          if (response.error && response.moves.length === 0) {
-            set({ isSolving: false });
+          if (response.error && (!response.moves || response.moves.length === 0)) {
+            set({ isSolving: false, solutionPathNodes: [], activeSolutionIndex: 0 });
             alert(response.error);
             return;
           }
+
+          // Register solution path nodes starting from current state to solved
+          set({
+            solutionPathNodes: response.path_nodes || [],
+            activeSolutionIndex: 0,
+          });
 
           // Add each solving move to the animation queue
           response.moves.forEach((move: string) => {
             addMove(move);
           });
         } catch (e) {
-          set({ isSolving: false });
+          set({ isSolving: false, solutionPathNodes: [], activeSolutionIndex: 0 });
           console.error('Failed to find solution with Wasm', e);
           alert('Error finding solution with WebAssembly solver.');
         }
@@ -465,6 +503,8 @@ export const useCubeStore = create<CubeStore>((set, get) => {
             redoStack: [],
             isSavedInDB: false,
             isSolving: false,
+            solutionPathNodes: [],
+            activeSolutionIndex: 0,
             currentScramble: null,
             timerStatus: 'idle',
             inspectionTimeLeft: 15,

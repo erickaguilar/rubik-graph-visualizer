@@ -31,5 +31,6 @@ pub struct GraphData {
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct SolveResult {
     pub moves: Vec<String>,
+    pub path_nodes: Vec<String>,
     pub error: Option<String>,
 }

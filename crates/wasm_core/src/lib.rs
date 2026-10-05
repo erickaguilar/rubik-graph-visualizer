@@ -98,6 +98,7 @@ impl WasmCubeManager {
             Err(e) => {
                 let res = SolveResult {
                     moves: Vec::new(),
+                    path_nodes: Vec::new(),
                     error: Some(format!("Invalid sequence: {}", e)),
                 };
                 return serde_wasm_bindgen::to_value(&res)
@@ -110,6 +111,7 @@ impl WasmCubeManager {
         if current_hash == target_hash {
             let res = SolveResult {
                 moves: Vec::new(),
+                path_nodes: vec![current_hash],
                 error: Some("Cube is already solved.".to_string()),
             };
             return serde_wasm_bindgen::to_value(&res)
@@ -117,9 +119,10 @@ impl WasmCubeManager {
         }
 
         match self.graph.find_shortest_path(&current_hash, &target_hash) {
-            Ok(moves) => {
+            Ok((moves, path_nodes)) => {
                 let res = SolveResult {
                     moves,
+                    path_nodes,
                     error: None,
                 };
                 serde_wasm_bindgen::to_value(&res)
@@ -128,6 +131,7 @@ impl WasmCubeManager {
             Err(e) => {
                 let res = SolveResult {
                     moves: Vec::new(),
+                    path_nodes: Vec::new(),
                     error: Some(e),
                 };
                 serde_wasm_bindgen::to_value(&res)
@@ -180,8 +184,8 @@ mod tests {
         let target_hash = solved.get_hash();
         let scrambled_state = solved.apply_sequence(&full_str).unwrap();
         let current_hash = scrambled_state.get_hash();
-
-        let solution_moves = graph.find_shortest_path(&current_hash, &target_hash).unwrap();
+        let (solution_moves, solution_nodes) = graph.find_shortest_path(&current_hash, &target_hash).unwrap();
+        assert_eq!(solution_nodes.len(), solution_moves.len() + 1);
         println!("Solve moves count: {}", solution_moves.len());
         println!("Solve moves: {:?}", solution_moves);
 
